@@ -42,6 +42,13 @@
   #legendList li .cnt { margin-left:auto; color:#888; font-size:11px; }
   #legendList li.banItem { padding-left:28px; font-size:11.5px; color:#555; }
   #legendList li.banItem .swatch { width:9px; height:9px; border:1px dashed #888; background:transparent !important; border-radius:2px; }
+  #legendList li .filterChk { flex:0 0 auto; margin:0; cursor:pointer; }
+  #legendPanel h2 { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  #legendClearFilterBtn {
+    margin-left:auto; font-size:11px; font-weight:400; color:#4b6ebe; background:#eef2fb;
+    border:1px solid #d3ddf3; border-radius:4px; padding:2px 8px; cursor:pointer;
+  }
+  #legendClearFilterBtn:hover { background:#e0e8fa; }
 
   .tong-label {
     font-family:"NanumGothic","Malgun Gothic","sans-serif";
@@ -116,7 +123,9 @@
 </div>
 
 <div id="legendPanel">
-  <h2>통 목록 <span id="legendCount" style="color:#999;font-weight:400;"></span></h2>
+  <h2>통 목록 <span id="legendCount" style="color:#999;font-weight:400;"></span>
+    <button id="legendClearFilterBtn" type="button" style="display:none;">전체 보기</button>
+  </h2>
   <ul id="legendList"></ul>
 </div>
 
@@ -186,6 +195,11 @@ var LS_BOUNDARY_KEY = 'hannam_boundary_data_v1';
 
 var oMap, tongOverlay, labelOverlays = [], polygonLayers = [], boundaryLines = [];
 var banPolygonLayers = [], banLabelOverlays = [];
+// 목록 체크박스로 "이 통/반만 보기" 필터를 걸 때 쓰는 상태.
+// filterMeta: 화면에 그려진 통/반 각각의 폴리곤·이름표를 체크박스 키와 묶어서 보관.
+// checkedFilterKeys: 지금 체크된 키 집합(하나라도 있으면 필터가 걸린 상태).
+var filterMeta = [];
+var checkedFilterKeys = {};
 var colorCache = {};
 var activeHoverPolygon = null;
 var hoverLeaveTimer = null;
@@ -281,6 +295,9 @@ function clearOverlays() {
   boundaryLines.forEach(function (l) { l.setMap(null); });
   boundaryLines = [];
   if (tongOverlay) tongOverlay.setMap(null);
+  filterMeta = [];
+  checkedFilterKeys = {};
+  document.getElementById('legendClearFilterBtn').style.display = 'none';
 }
 
 function renderBoundary(ring) {
@@ -353,6 +370,7 @@ function renderTongFeatures(tongFeatures) {
       var banTooltipHtml = '<div class="tooltip"><span class="title">한남동 ' + tf.tong + '통 ' + bs.ban + '반</span>' +
         (bs.chiefName ? '<br/>반장: ' + bs.chiefName : '') + '</div>';
 
+      var banLabel = null;
       if (banCenter) {
         var banLabelLatLng = new kakao.maps.LatLng(banCenter[1], banCenter[0]);
         // 반 이름표는 지도 위에 얹히는 별도 DOM 엘리먼트라, 그 위에 직접 mouseenter/mouseleave 를
@@ -363,7 +381,7 @@ function renderTongFeatures(tongFeatures) {
         banLabelDiv.addEventListener('mouseenter', function () { hoverEnter(banPolygon, banTooltipHtml, banLabelLatLng); });
         banLabelDiv.addEventListener('mouseleave', function () { hoverLeave(banPolygon); });
 
-        var banLabel = new kakao.maps.CustomOverlay({
+        banLabel = new kakao.maps.CustomOverlay({
           position: banLabelLatLng,
           content: banLabelDiv,
           zIndex: 6
@@ -372,38 +390,55 @@ function renderTongFeatures(tongFeatures) {
         banLabelOverlays.push(banLabel);
       }
 
-      banEntries.push({ ban: bs.ban, polygon: banPolygon, center: banCenter, tooltipHtml: banTooltipHtml, chiefName: bs.chiefName });
+      banEntries.push({ ban: bs.ban, polygon: banPolygon, center: banCenter, tooltipHtml: banTooltipHtml, chiefName: bs.chiefName, banLabelOverlay: banLabel });
     });
     banEntries.sort(function (a, b) { return a.ban - b.ban; });
 
+    var tongKey = 'tong:' + tf.tong;
+
     var li = document.createElement('li');
+    var chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.className = 'filterChk';
+    chk.title = '체크하면 이 통만 지도에 표시합니다';
+    chk.addEventListener('click', function (evt) { evt.stopPropagation(); });
+    chk.addEventListener('change', function () { setFilterChecked(tongKey, chk.checked); });
     var swatch = document.createElement('span');
     swatch.className = 'swatch';
     swatch.style.background = colors.fill;
     var label = document.createElement('span');
     label.textContent = tf.tong + '통' + (tf.chief ? ' · 통장 ' + tf.chief : '');
-    li.appendChild(swatch); li.appendChild(label);
+    li.appendChild(chk); li.appendChild(swatch); li.appendChild(label);
     if (tf.center) {
       li.addEventListener('mouseenter', function () { hoverEnter(polygon, tooltipHtml, new kakao.maps.LatLng(tf.center[1], tf.center[0])); });
       li.addEventListener('mouseleave', function () { hoverLeave(polygon); });
       li.addEventListener('click', function () { oMap.setCenter(new kakao.maps.LatLng(tf.center[1], tf.center[0])); oMap.setLevel(4); });
     }
     legendList.appendChild(li);
+    filterMeta.push({ key: tongKey, polygon: polygon, label: tf.center ? labelOverlays[labelOverlays.length - 1] : null });
 
     banEntries.forEach(function (be) {
+      var banKey = 'ban:' + tf.tong + '-' + be.ban;
       var bli = document.createElement('li');
       bli.className = 'banItem';
+      var bChk = document.createElement('input');
+      bChk.type = 'checkbox';
+      bChk.className = 'filterChk';
+      bChk.title = '체크하면 이 반만 지도에 표시합니다';
+      bChk.addEventListener('click', function (evt) { evt.stopPropagation(); });
+      bChk.addEventListener('change', function () { setFilterChecked(banKey, bChk.checked); });
       var bSwatch = document.createElement('span');
       bSwatch.className = 'swatch';
       var bLabel = document.createElement('span');
       bLabel.textContent = tf.tong + '통 ' + be.ban + '반' + (be.chiefName ? ' · 반장 ' + be.chiefName : '');
-      bli.appendChild(bSwatch); bli.appendChild(bLabel);
+      bli.appendChild(bChk); bli.appendChild(bSwatch); bli.appendChild(bLabel);
       if (be.center) {
         bli.addEventListener('mouseenter', function () { hoverEnter(be.polygon, be.tooltipHtml, new kakao.maps.LatLng(be.center[1], be.center[0])); });
         bli.addEventListener('mouseleave', function () { hoverLeave(be.polygon); });
         bli.addEventListener('click', function () { oMap.setCenter(new kakao.maps.LatLng(be.center[1], be.center[0])); oMap.setLevel(3); });
       }
       legendList.appendChild(bli);
+      filterMeta.push({ key: banKey, polygon: be.polygon, label: be.banLabelOverlay || null, isBan: true });
     });
   });
 }
@@ -412,7 +447,7 @@ function renderAll(tongData, boundaryData) {
   clearOverlays();
   renderBoundary(boundaryRingFromData(boundaryData));
   renderTongFeatures(tongFeaturesFromData(tongData));
-  updateBanLabelVisibility();
+  applyListFilter();
 }
 
 // 지도를 일정 수준 이상 축소하면(레벨 숫자가 커지면) 반 이름표는 너무 빽빽해져서 안 보이게 하고
@@ -422,6 +457,27 @@ function updateBanLabelVisibility() {
   if (!oMap) return;
   var show = oMap.getLevel() <= BAN_LABEL_MAX_LEVEL;
   banLabelOverlays.forEach(function (l) { l.setMap(show ? oMap : null); });
+}
+
+// 목록에서 통/반 체크박스를 켜면, 체크된 것만 지도에 남기고 나머지는 숨긴다.
+// 하나도 체크 안 돼있으면(기본 상태) 전부 보여준다.
+function setFilterChecked(key, checked) {
+  if (checked) checkedFilterKeys[key] = true;
+  else delete checkedFilterKeys[key];
+  applyListFilter();
+}
+
+function applyListFilter() {
+  var anyChecked = Object.keys(checkedFilterKeys).length > 0;
+  document.getElementById('legendClearFilterBtn').style.display = anyChecked ? '' : 'none';
+  filterMeta.forEach(function (m) {
+    var show = !anyChecked || !!checkedFilterKeys[m.key];
+    if (m.polygon) m.polygon.setMap(show ? oMap : null);
+    // 체크해서 강제로 보여줄 때는 줌 레벨과 상관없이 이름표도 같이 보여준다.
+    // 필터가 없을 때(전체 보기)는 반 이름표의 줌 레벨 규칙을 그대로 따르도록 아래에서 다시 정리한다.
+    if (m.label) m.label.setMap(show ? oMap : null);
+  });
+  if (!anyChecked) updateBanLabelVisibility();
 }
 
 function setStatus(html) {
@@ -501,7 +557,12 @@ function init() {
   var mapContainer = document.getElementById('gisMap');
   oMap = new kakao.maps.Map(mapContainer, { center: new kakao.maps.LatLng(37.53745, 127.00595), level: 5 });
   tongOverlay = new kakao.maps.CustomOverlay({ zIndex: 9 });
-  kakao.maps.event.addListener(oMap, 'zoom_changed', updateBanLabelVisibility);
+  kakao.maps.event.addListener(oMap, 'zoom_changed', applyListFilter);
+  document.getElementById('legendClearFilterBtn').addEventListener('click', function () {
+    document.querySelectorAll('#legendList .filterChk').forEach(function (c) { c.checked = false; });
+    checkedFilterKeys = {};
+    applyListFilter();
+  });
 
   populateDongBoundarySelect();
 
