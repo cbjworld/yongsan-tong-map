@@ -26,6 +26,13 @@
   #fileStatus { font-size:11px; color:#333; margin-top:4px; line-height:1.5; word-break:break-all; }
   #fileStatus .ok { color:#0a7a2f; font-weight:600; }
   #fileStatus .warn { color:#c0392b; font-weight:600; }
+  #addrSearchBox { margin-bottom:10px; }
+  #addrSearchInput { flex:1; padding:6px 8px; border-radius:6px; border:1px solid #ccc; font-size:12px; min-width:0; }
+  #addrSearchBtn { flex:0 0 auto; padding:6px 10px; border-radius:6px; border:1px solid #4b6ebe; background:#4b6ebe; color:#fff; font-size:12px; cursor:pointer; }
+  #addrSearchBtn:hover { background:#3d5aa0; }
+  #addrSearchResult.status { font-size:11.5px; margin-top:5px; line-height:1.5; word-break:break-all; }
+  #addrSearchResult.status.ok { color:#0a7a2f; font-weight:600; }
+  #addrSearchResult.status.warn { color:#c0392b; font-weight:600; }
 
   #legendPanel {
     position:absolute; top:12px; right:12px; z-index:20;
@@ -112,6 +119,14 @@
 <div id="topbar">
   <h1>한남동 스마트 통·반 지도</h1>
   <div class="sub">통 경계 편집기(hannam_tong_editor.html)에서 만든 JSON을 불러오면 그 경계로 통이 그려집니다.</div>
+  <div id="addrSearchBox">
+    <label style="font-size:11px;color:#555;display:block;margin-bottom:4px;">주소로 통/반 찾기 (도로명·지번 모두 가능)</label>
+    <div style="display:flex;gap:4px;">
+      <input type="text" id="addrSearchInput" placeholder="예: 한남동 810 또는 대사관로 12">
+      <button id="addrSearchBtn" type="button">검색</button>
+    </div>
+    <div id="addrSearchResult" class="status"></div>
+  </div>
   <label style="font-size:11px;color:#555;display:block;margin-bottom:4px;">동 선택 (기본 외곽선)</label>
   <select id="dongBoundarySelect" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #ccc;font-size:12px;margin-bottom:8px;"></select>
   <button class="fileBtn" id="refreshFromGithubBtn" type="button">최신 데이터 새로고침</button>
@@ -268,6 +283,124 @@ function tongFeaturesFromData(tongData) {
       chief: item.COT_LEADER_NAME || '',
       banShapes: banShapes
     };
+  });
+}
+
+/* ---------- 주소로 통/반 찾기 ----------
+   카카오 주소 검색(Geocoder)으로 주소(도로명·지번 모두 지원)를 좌표로 바꾼 다음,
+   그 좌표가 어느 동 → 어느 통 → 어느 반 폴리곤 안에 있는지 순서대로 점-다각형 포함
+   판정(레이캐스팅)으로 찾는다. turf.js 없이 순수 JS로 처리한다(뷰어는 가벼워야 해서
+   에디터처럼 turf.js를 통째로 넣지 않았다). */
+function pointInRing(pt, ring) {
+  var x = pt[0], y = pt[1], inside = false;
+  for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    var xi = ring[i][0], yi = ring[i][1];
+    var xj = ring[j][0], yj = ring[j][1];
+    var intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function pointInAnyRing(pt, rings) {
+  return (rings || []).some(function (ring) { return ring && ring.length >= 3 && pointInRing(pt, ring); });
+}
+
+function findDongForPoint(lng, lat) {
+  var pt = [lng, lat];
+  var names = Object.keys(ALL_DONG_BOUNDARIES);
+  for (var i = 0; i < names.length; i++) {
+    var ring = boundaryRingFromData(ALL_DONG_BOUNDARIES[names[i]]);
+    if (ring && ring.length && pointInRing(pt, ring)) return names[i];
+  }
+  return null;
+}
+
+// tongData(불러온 동의 통/반 JSON) 안에서 이 좌표가 속한 통/반을 찾는다.
+// 반까지 배정돼 있으면 반 정보까지, 아직 통만 있고 반이 없으면 통 정보까지만 돌려준다.
+function findTongBanForPoint(lng, lat, tongData) {
+  var pt = [lng, lat];
+  var feats = tongFeaturesFromData(tongData);
+  for (var i = 0; i < feats.length; i++) {
+    var tf = feats[i];
+    if (!pointInAnyRing(pt, tf.rings)) continue;
+    var banHit = (tf.banShapes || []).filter(function (bs) { return pointInAnyRing(pt, bs.rings); })[0];
+    return { tong: tf.tong, chief: tf.chief, ban: banHit ? banHit.ban : null, banChief: banHit ? banHit.chiefName : '' };
+  }
+  return null;
+}
+
+var geocoder = null;
+
+function setAddrSearchStatus(text, cls) {
+  var el = document.getElementById('addrSearchResult');
+  el.className = 'status' + (cls ? ' ' + cls : '');
+  el.textContent = text;
+}
+
+function reportTongBanAt(lng, lat, dongName, addrLabel, tongData) {
+  var hit = findTongBanForPoint(lng, lat, tongData);
+  if (!hit) {
+    setAddrSearchStatus(addrLabel + ' → ' + dongName + '입니다. 아직 어느 통에도 편입되지 않은 구역이에요.', 'warn');
+  } else {
+    var banText = hit.ban != null ? (' ' + hit.ban + '반') : ' (반 미배정)';
+    setAddrSearchStatus(
+      addrLabel + ' → ' + dongName + ' ' + hit.tong + '통' + banText +
+      (hit.chief ? ' · 통장 ' + hit.chief : '') + (hit.banChief ? ' · 반장 ' + hit.banChief : ''),
+      'ok'
+    );
+  }
+  oMap.setCenter(new kakao.maps.LatLng(lat, lng));
+  oMap.setLevel(3);
+}
+
+// 검색된 동이 지금 화면에 떠 있는 동과 다르면, 그 동의 통/반 데이터를 깃허브에서 받아와서
+// 화면도 그 동으로 전환한 뒤 결과를 보여준다. 깃허브 연동이 꺼져 있거나 그 동 데이터가
+// 아직 없으면, 사용자가 위 "동 선택"에서 직접 바꾸도록 안내한다.
+function locateTongBanForDong(lng, lat, dongName, addrLabel) {
+  var currentDong = document.getElementById('dongBoundarySelect').value;
+  if (dongName === currentDong) {
+    reportTongBanAt(lng, lat, dongName, addrLabel, TONG_DATA);
+    return;
+  }
+  setAddrSearchStatus(dongName + ' 데이터를 불러오는 중…', 'ok');
+  fetchRemoteTongData(dongName).then(function (data) {
+    if (!data) {
+      setAddrSearchStatus(dongName + '의 통/반 데이터를 아직 불러오지 못했습니다. 위 "동 선택"에서 ' + dongName + '으로 바꾼 뒤 다시 검색해주세요.', 'warn');
+      return;
+    }
+    document.getElementById('dongBoundarySelect').value = dongName;
+    BOUNDARY_DATA = ALL_DONG_BOUNDARIES[dongName] || BOUNDARY_DATA;
+    TONG_DATA = data;
+    try {
+      localStorage.setItem(LS_BOUNDARY_KEY, JSON.stringify(BOUNDARY_DATA));
+      localStorage.setItem(LS_TONG_KEY, JSON.stringify(TONG_DATA));
+    } catch (e) {}
+    renderAll(TONG_DATA, BOUNDARY_DATA);
+    reportTongBanAt(lng, lat, dongName, addrLabel, TONG_DATA);
+  });
+}
+
+function locateTongBanByAddress() {
+  var query = document.getElementById('addrSearchInput').value.trim();
+  if (!query) { setAddrSearchStatus('주소를 입력해주세요.', 'warn'); return; }
+  if (!geocoder) { setAddrSearchStatus('주소 검색 서비스를 아직 불러오지 못했습니다. 잠시 후 다시 시도해주세요.', 'warn'); return; }
+
+  setAddrSearchStatus('주소 확인 중…', 'ok');
+  geocoder.addressSearch(query, function (results, status) {
+    if (status !== kakao.maps.services.Status.OK || !results || !results.length) {
+      setAddrSearchStatus('주소를 찾지 못했습니다: ' + query, 'warn');
+      return;
+    }
+    var r = results[0];
+    var lng = parseFloat(r.x), lat = parseFloat(r.y);
+    var dongName = findDongForPoint(lng, lat);
+    if (!dongName) {
+      setAddrSearchStatus('용산구 동 경계 안에서 이 주소를 찾지 못했습니다.', 'warn');
+      return;
+    }
+    var addrLabel = (r.road_address && r.road_address.address_name) || r.address_name || query;
+    locateTongBanForDong(lng, lat, dongName, addrLabel);
   });
 }
 
@@ -577,6 +710,12 @@ function init() {
   });
 
   populateDongBoundarySelect();
+
+  geocoder = new kakao.maps.services.Geocoder();
+  document.getElementById('addrSearchBtn').addEventListener('click', locateTongBanByAddress);
+  document.getElementById('addrSearchInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') locateTongBanByAddress();
+  });
 
   var storedTong = null, storedBoundary = null;
   try {
