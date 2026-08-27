@@ -472,7 +472,19 @@ function applyListFilter() {
   document.getElementById('legendClearFilterBtn').style.display = anyChecked ? '' : 'none';
   filterMeta.forEach(function (m) {
     var show = !anyChecked || !!checkedFilterKeys[m.key];
-    if (m.polygon) m.polygon.setMap(show ? oMap : null);
+    if (m.polygon) {
+      m.polygon.setMap(show ? oMap : null);
+      if (m.isBan) {
+        // 반은 원래 점선 윤곽선만 보이게(채우기 없음) 그려져 있는데, 그 반만 콕 집어
+        // 체크했을 때는(통 전체 선택이 아니라) 그 통의 색으로 채워서 눈에 띄게 한다.
+        // 통 전체를 선택했거나 필터가 없는 기본 상태에서는 원래처럼 채우지 않는다.
+        var filledIn = anyChecked && !!checkedFilterKeys[m.key];
+        m.polygon.__baseOpacity = filledIn ? 0.35 : 0;
+        if (activeHoverPolygon !== m.polygon) {
+          m.polygon.setOptions({ fillOpacity: m.polygon.__baseOpacity });
+        }
+      }
+    }
     // 체크해서 강제로 보여줄 때는 줌 레벨과 상관없이 이름표도 같이 보여준다.
     // 필터가 없을 때(전체 보기)는 반 이름표의 줌 레벨 규칙을 그대로 따르도록 아래에서 다시 정리한다.
     if (m.label) m.label.setMap(show ? oMap : null);
