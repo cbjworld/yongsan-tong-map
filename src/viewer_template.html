@@ -126,11 +126,15 @@
 
 /* ---------- 기본 데이터 (통 경계 편집기에서 내보낸 JSON) ---------- */
 var TONG_DATA = /* __TONG_DATA__ */;
-var BOUNDARY_DATA = /* __BOUNDARY_DATA__ */;
 
 /* ---------- 용산구 16개 동 외곽선 (행정동 경계, 미리 탑재됨) ---------- */
 var ALL_DONG_BOUNDARIES = /* __ALL_DONG_BOUNDARIES__ */;
 var DEFAULT_DONG_NAME = '한남동';
+
+// 예전에는 외곽선을 BOUNDARY_DATA 라는 별도 파일로 따로 내장했는데, 그러다 보니
+// ALL_DONG_BOUNDARIES(에디터와 공유하는 정밀 경계)를 갱신해도 이 기본값은 안 바뀌는
+// 문제가 있었다. 이제는 ALL_DONG_BOUNDARIES 하나만 기준으로 삼는다.
+var BOUNDARY_DATA = ALL_DONG_BOUNDARIES[DEFAULT_DONG_NAME];
 
 var LS_TONG_KEY = 'hannam_tong_data_v1';
 var LS_BOUNDARY_KEY = 'hannam_boundary_data_v1';
