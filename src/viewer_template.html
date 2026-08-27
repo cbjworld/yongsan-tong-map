@@ -107,6 +107,7 @@
   <div class="sub">통 경계 편집기(hannam_tong_editor.html)에서 만든 JSON을 불러오면 그 경계로 통이 그려집니다.</div>
   <label style="font-size:11px;color:#555;display:block;margin-bottom:4px;">동 선택 (기본 외곽선)</label>
   <select id="dongBoundarySelect" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #ccc;font-size:12px;margin-bottom:8px;"></select>
+  <button class="fileBtn" id="refreshFromGithubBtn" type="button">최신 데이터 새로고침</button>
   <label class="fileBtn" for="tongFileInput">통 경계 JSON 불러오기</label>
   <input type="file" id="tongFileInput" accept=".json">
   <label class="fileBtn" for="boundaryFileInput">외곽선 JSON 불러오기</label>
@@ -126,6 +127,10 @@
 
 /* ---------- 기본 데이터 (통 경계 편집기에서 내보낸 JSON) ---------- */
 var TONG_DATA = /* __TONG_DATA__ */;
+// 위 TONG_DATA는 이 자리에서 딱 한 번 내장된 원본이다. 동을 한남동 -> 다른 동 -> 다시
+// 한남동으로 바꿔도 이 원본을 다시 꺼내 쓸 수 있도록 따로 보관해둔다 (안 해두면 다른 동을
+// 거쳐갔을 때 한남동 데이터가 영영 빈 상태로 사라져버리는 문제가 있었다).
+var EMBEDDED_DEFAULT_TONG_DATA = TONG_DATA;
 
 /* ---------- 용산구 16개 동 외곽선 (행정동 경계, 미리 탑재됨) ---------- */
 var ALL_DONG_BOUNDARIES = /* __ALL_DONG_BOUNDARIES__ */;
@@ -135,6 +140,46 @@ var DEFAULT_DONG_NAME = '한남동';
 // ALL_DONG_BOUNDARIES(에디터와 공유하는 정밀 경계)를 갱신해도 이 기본값은 안 바뀌는
 // 문제가 있었다. 이제는 ALL_DONG_BOUNDARIES 하나만 기준으로 삼는다.
 var BOUNDARY_DATA = ALL_DONG_BOUNDARIES[DEFAULT_DONG_NAME];
+
+/* ---------- 깃허브 저장소를 통/반 데이터 저장소로 사용 ----------
+   편집기에서 "깃허브에 저장"을 누르면 이 저장소의 GH_TONG_PATH_PATTERN 경로에 파일이 커밋된다.
+   이 값들은 build.py가 채워 넣는다 (빈 문자열이면 이 기능을 그냥 건너뛰고 내장된 기본 데이터만 쓴다). */
+var GH_OWNER = '__GH_OWNER__';
+var GH_REPO = '__GH_REPO__';
+var GH_BRANCH = '__GH_BRANCH__';
+var GH_TONG_PATH_PATTERN = '__GH_TONG_PATH_PATTERN__'; // {dong} 은 동 이름으로 치환됨
+
+function remoteTongUrl(dongName) {
+  if (!GH_OWNER || !GH_REPO || !GH_TONG_PATH_PATTERN) return null;
+  var path = GH_TONG_PATH_PATTERN.replace('{dong}', dongName).split('/').map(encodeURIComponent).join('/');
+  var branch = GH_BRANCH || 'main';
+  // 캐시 우회용 쿼리스트링을 붙여서, CDN 에 캐시된 옛날 파일 대신 최신 커밋을 받아온다.
+  return 'https://raw.githubusercontent.com/' + GH_OWNER + '/' + GH_REPO + '/' + branch + '/' + path + '?t=' + Date.now();
+}
+
+function fetchRemoteTongData(dongName) {
+  var url = remoteTongUrl(dongName);
+  if (!url) return Promise.resolve(null);
+  return fetch(url, { cache: 'no-store' }).then(function (res) {
+    if (!res.ok) return null;
+    return res.json();
+  }).catch(function () { return null; });
+}
+
+function refreshFromGithub(dongName) {
+  if (!remoteTongUrl(dongName)) return;
+  setStatus('<span class="ok">깃허브에서 최신 통/반 데이터를 확인하는 중…</span>');
+  fetchRemoteTongData(dongName).then(function (data) {
+    if (!data) {
+      setStatus('<span class="warn">깃허브에서 ' + dongName + ' 데이터를 찾지 못했습니다</span> (아직 저장 전이거나 설정을 확인해주세요 · 마지막으로 불러온 데이터로 표시 중)');
+      return;
+    }
+    TONG_DATA = data;
+    try { localStorage.setItem(LS_TONG_KEY, JSON.stringify(data)); } catch (e) {}
+    renderAll(TONG_DATA, BOUNDARY_DATA);
+    setStatus('<span class="ok">깃허브 최신 데이터 반영됨</span> · ' + new Date().toLocaleTimeString());
+  });
+}
 
 var LS_TONG_KEY = 'hannam_tong_data_v1';
 var LS_BOUNDARY_KEY = 'hannam_boundary_data_v1';
@@ -439,10 +484,17 @@ document.getElementById('dongBoundarySelect').addEventListener('change', functio
   BOUNDARY_DATA = data;
   try { localStorage.setItem(LS_BOUNDARY_KEY, JSON.stringify(data)); } catch (e) {}
   // 동을 바꾸면 이전 동의 통 경계는 더는 맞지 않으므로 비워둔다. (필요하면 그 동의 통 경계 JSON을 따로 불러오세요.)
-  TONG_DATA = emptyTongData(name);
+  // 단, 기본 동(한남동)으로 돌아왔을 때는 파일에 내장된 원본 데이터를 그대로 복원한다 —
+  // 안 그러면 깃허브 연동이 꺼져있거나 응답이 실패했을 때 한남동 데이터가 영영 빈 채로 남는다.
+  TONG_DATA = (name === DEFAULT_DONG_NAME) ? EMBEDDED_DEFAULT_TONG_DATA : emptyTongData(name);
   try { localStorage.removeItem(LS_TONG_KEY); } catch (e) {}
   renderAll(TONG_DATA, BOUNDARY_DATA);
-  setStatus('<span class="ok">' + name + ' 기본 외곽선 표시 중</span> (통 경계는 초기화됨 · 필요하면 JSON을 불러오세요)');
+  setStatus('<span class="ok">' + name + ' 기본 외곽선 표시 중</span> (깃허브에서 확인 중…)');
+  refreshFromGithub(name);
+});
+
+document.getElementById('refreshFromGithubBtn').addEventListener('click', function () {
+  refreshFromGithub(document.getElementById('dongBoundarySelect').value || DEFAULT_DONG_NAME);
 });
 
 function init() {
@@ -467,6 +519,9 @@ function init() {
 
   setStatus(storedTong ? '<span class="ok">최근 불러온 JSON 사용 중</span>' : '기본 데이터로 표시 중');
   document.getElementById('loading').style.display = 'none';
+
+  // 화면은 일단 있는 데이터로 먼저 그리고, 그 다음 깃허브에 더 최신 데이터가 있으면 덮어씌운다.
+  refreshFromGithub(DEFAULT_DONG_NAME);
 }
 
 /* ---------- 접속 비밀번호 확인 ----------

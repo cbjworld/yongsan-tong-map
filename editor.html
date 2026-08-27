@@ -199,9 +199,12 @@
 
   <h2>깃허브에 자동 저장</h2>
   <p style="color:#888; font-size:12px; margin:0 0 8px;">
-    여기 저장하면 지도(뷰어)를 새로고침할 때 자동으로 최신 내용이 뜹니다.
-    토큰은 이 브라우저에만 저장되고 파일 안에는 남지 않지만, 이 저장소에 쓰기 권한이 있는
-    토큰이니 공용 컴퓨터에서는 입력하지 마세요. (저장소 Contents 권한만 있는 fine-grained 토큰 권장)
+    여기서 저장하면 지도(뷰어)를 새로고침할 때 자동으로 최신 내용이 뜹니다.
+    아래 값들은 build.py 에서 이 파일에 미리 채워둔 것이라, 어느 컴퓨터에서 열어도
+    비밀번호만 입력하면 바로 불러오기·저장이 됩니다. 단, 그만큼 <b>이 토큰은 이 파일을
+    보는 누구나 볼 수 있는 상태</b>라는 뜻이기도 해요 (저장소 Contents 권한만 있는
+    fine-grained 토큰으로 좁혀뒀으니, 유출이 걱정되면 깃허브에서 그 토큰만 바로 폐기하면
+    됩니다). 필요하면 아래 값을 이 브라우저에서만 다르게 바꿔 쓸 수도 있어요.
   </p>
   <label class="fieldLabel">저장소 소유자 (예: myuser)</label>
   <input type="text" id="ghOwner" placeholder="github 사용자명 또는 조직명">
@@ -1360,21 +1363,33 @@ function exportBoundaryJson() {
 }
 
 /* ---------- 깃허브 저장소에 직접 저장 (뷰어가 자동으로 읽어가는 데이터 소스) ----------
-   깃허브 Contents API로 저장소의 파일을 직접 커밋한다. 토큰은 이 브라우저의 localStorage에만
-   남기고(파일 소스에는 없음) 다른 곳으로 보내지 않는다. */
+   깃허브 Contents API로 저장소의 파일을 직접 커밋한다.
+   토큰을 build.py 로 파일에 내장해뒀기 때문에(사용자 요청), 이 파일을 보는 누구나 그 값을
+   볼 수 있다 — 저장소 Contents 권한만 있는 fine-grained 토큰으로 좁혀서 위험 범위를
+   제한했지만, 그래도 유출된 것과 같은 상태이니 새어나갔다고 판단되면 깃허브에서 즉시
+   토큰을 폐기(revoke)하고 새로 발급해서 build.py 를 다시 빌드해야 한다. */
+var GH_DEFAULT_OWNER = '';
+var GH_DEFAULT_REPO = 'yongsan-tong-map';
+var GH_DEFAULT_BRANCH = 'main';
+var GH_DEFAULT_PATH = 'data/{dong}_tong.json';
+var GH_DEFAULT_TOKEN = '';
+
 var GH_SETTINGS_KEY = 'hannamTongGithubSettings_v1';
 
 function loadGithubSettings() {
+  var s = null;
   try {
     var raw = localStorage.getItem(GH_SETTINGS_KEY);
-    if (!raw) return;
-    var s = JSON.parse(raw);
-    document.getElementById('ghOwner').value = s.owner || '';
-    document.getElementById('ghRepo').value = s.repo || '';
-    document.getElementById('ghBranch').value = s.branch || 'main';
-    document.getElementById('ghPath').value = s.path || 'data/{dong}_tong.json';
-    document.getElementById('ghToken').value = s.token || '';
+    if (raw) s = JSON.parse(raw);
   } catch (e) {}
+  // 이 브라우저에서 예전에 직접 입력해서 저장해둔 값이 있으면 그걸 우선 쓰고,
+  // 없으면 build.py 가 파일에 내장해둔 기본값으로 채운다 (그래야 다른 컴퓨터에서 열어도
+  // 비밀번호만 입력하면 바로 불러오기/저장이 되게 하려던 원래 요청이 충족된다).
+  document.getElementById('ghOwner').value = (s && s.owner) || GH_DEFAULT_OWNER || '';
+  document.getElementById('ghRepo').value = (s && s.repo) || GH_DEFAULT_REPO || '';
+  document.getElementById('ghBranch').value = (s && s.branch) || GH_DEFAULT_BRANCH || 'main';
+  document.getElementById('ghPath').value = (s && s.path) || GH_DEFAULT_PATH || 'data/{dong}_tong.json';
+  document.getElementById('ghToken').value = (s && s.token) || GH_DEFAULT_TOKEN || '';
 }
 
 function readGithubSettingsFromForm() {
@@ -1558,18 +1573,34 @@ function loadFromGithub() {
   }
   var dongName = document.getElementById('dongNameInput').value.trim() || '한남동';
   var path = s.path.replace('{dong}', dongName);
-  var apiUrl = 'https://api.github.com/repos/' + encodeURIComponent(s.owner) + '/' + encodeURIComponent(s.repo) + '/contents/' + path.split('/').map(encodeURIComponent).join('/');
-  var headers = { 'Accept': 'application/vnd.github+json' };
+  var branch = s.branch || 'main';
+  // 깃허브 Contents API(api.github.com/.../contents/...)는 파일이 1MB를 넘으면
+  // 본문(content)을 아예 비워서 돌려준다 (메타데이터만 응답). 한남동처럼 실제 통/반
+  // 데이터가 꽉 찬 파일은 이 한도를 넘기 쉬워서, 대신 raw.githubusercontent.com에서
+  // 파일을 통째로 직접 받아온다 (뷰어가 최신 데이터를 받아올 때 쓰는 방식과 동일하며,
+  // 크기 제한이 없다).
+  var rawUrl = 'https://raw.githubusercontent.com/' + encodeURIComponent(s.owner) + '/' + encodeURIComponent(s.repo) + '/' + encodeURIComponent(branch) + '/' + path.split('/').map(encodeURIComponent).join('/') + '?t=' + Date.now();
+  var headers = {};
   if (s.token) headers['Authorization'] = 'token ' + s.token;
 
   el.className = 'status ok'; el.textContent = '깃허브에서 불러오는 중…';
 
-  fetch(apiUrl + '?ref=' + encodeURIComponent(s.branch), { headers: headers }).then(function (res) {
-    if (res.status === 404) throw new Error('저장소에 ' + path + ' 파일이 아직 없습니다.');
-    if (!res.ok) throw new Error('조회 실패 (HTTP ' + res.status + ')');
-    return res.json();
-  }).then(function (fileInfo) {
-    var data = JSON.parse(base64ToUtf8(fileInfo.content));
+  fetch(rawUrl, { headers: headers, cache: 'no-store' }).then(function (res) {
+    if (res.status === 404) throw new Error('저장소에 ' + path + ' 파일이 아직 없습니다. (경로 "' + path + '", 브랜치 "' + branch + '"가 맞는지, 저장소가 공개로 전환됐는지 확인해주세요)');
+    return res.text().then(function (raw) {
+      if (!res.ok) {
+        throw new Error('조회 실패 (HTTP ' + res.status + ')');
+      }
+      if (!raw) {
+        throw new Error('깃허브 응답이 비어 있습니다 (HTTP ' + res.status + '). 저장소가 아직 완전히 공개로 전환되지 않았거나, 네트워크 중간에서 요청이 막혔을 수 있습니다.');
+      }
+      var data;
+      try { data = JSON.parse(raw); } catch (e3) {
+        throw new Error('파일 내용이 올바른 JSON이 아닙니다: ' + raw.slice(0, 150));
+      }
+      return data;
+    });
+  }).then(function (data) {
     applyTongJsonData(data, '깃허브 (' + path + ')');
   }).catch(function (err) {
     el.className = 'status warn'; el.textContent = '불러오기 실패: ' + err.message;
