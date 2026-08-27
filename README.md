@@ -47,6 +47,59 @@
 python3 -c "import hashlib; print(hashlib.sha256('새비밀번호'.encode()).hexdigest())"
 ```
 
+## 편집기에서 고친 내용이 뷰어에 자동으로 뜨게 하기
+
+기본적으로는 편집기에서 "통 경계 JSON"을 내려받아 뷰어에 수동으로 불러와야 합니다.
+그 대신 이 저장소 자체를 데이터 저장소로 써서, **편집기에서 저장하면 뷰어를 새로고침할 때
+자동으로 최신 내용이 뜨게** 할 수 있습니다.
+
+### 1. 저장소 쪽 설정 (한 번만)
+
+`build.py` 위쪽의 값을 채우고 `python3 build.py`를 다시 실행하세요.
+
+```python
+GH_OWNER = 'myuser'                          # 본인 깃허브 사용자명/조직명
+GH_REPO = 'yongsan-tong-map'                 # 이 저장소 이름
+GH_BRANCH = 'main'
+GH_TONG_PATH_PATTERN = 'data/{dong}_tong.json'
+```
+
+이 값이 채워진 채로 빌드된 `index.html`(뷰어)은 열릴 때마다, 그리고 동을 바꾸거나
+"최신 데이터 새로고침" 버튼을 누를 때마다 `data/<동이름>_tong.json` 파일을
+`raw.githubusercontent.com`에서 직접 받아와 화면에 반영합니다. 저장소에 아직 그 동의
+파일이 없으면 조용히 내장된 기본 데이터로 대체합니다.
+
+### 2. 편집기에서 저장 / 불러오기
+
+편집기(`editor.html`)를 열면 "깃허브에 자동 저장" 항목이 있습니다.
+
+- **저장소 소유자 / 이름 / 브랜치 / 경로**: 위 `build.py`에 적은 값과 똑같이 입력합니다.
+- **개인 액세스 토큰**: GitHub에서 이 저장소에만 쓰기 권한이 있는 fine-grained 토큰을
+  만들어 입력합니다 ([설정 방법](#3-개인-액세스-토큰-만들기) 참고). 토큰은 이 브라우저의
+  localStorage에만 저장되고, 파일 자체(소스)에는 절대 남지 않습니다.
+- **깃허브에서 불러오기** 버튼: 지금 이 저장소에 저장돼 있는 최신 데이터를 편집기로
+  가져와서 이어서 편집할 수 있습니다.
+- **깃허브에 저장** 버튼: 지금 편집기 화면의 통/반 경계를 그대로 저장소의
+  `data/<동이름>_tong.json` 파일에 덮어씁니다 (파일이 없으면 새로 만듦).
+
+즉, 실제 작업 흐름은: **편집기에서 "깃허브에서 불러오기" → 수정 → "깃허브에 저장"** 이고,
+뷰어는 그 파일이 바뀔 때마다 새로고침만 하면 최신 내용을 보여줍니다.
+
+> raw.githubusercontent.com은 CDN을 거치기 때문에 저장 직후 몇 초~1분 정도는 옛날 내용이
+> 잠깐 보일 수 있습니다 (뷰어는 캐시를 우회하는 요청을 보내긴 하지만, 그래도 완전히 즉시는
+> 아닐 수 있어요). "완전한 실시간"이 꼭 필요하면 Firebase 같은 실시간 DB로 바꾸는 방법도
+> 있습니다.
+
+### 3. 개인 액세스 토큰 만들기
+
+1. GitHub 우측 상단 프로필 → **Settings → Developer settings → Personal access tokens
+   → Fine-grained tokens → Generate new token**
+2. **Repository access**를 "Only select repositories"로 하고 이 저장소만 선택
+3. **Permissions → Repository permissions → Contents**를 "Read and write"로 설정
+4. 나머지 권한은 전부 비활성 상태로 두고 토큰 생성 → 편집기의 "개인 액세스 토큰" 칸에 붙여넣기
+
+이렇게 만들면 이 토큰이 새어나가도 이 저장소의 파일 읽기/쓰기 말고는 아무것도 할 수 없습니다.
+
 ## 데이터를 수정하고 다시 빌드하기
 
 `index.html`과 `editor.html`은 손으로 직접 고치는 파일이 아니라, `src/` 안의 템플릿과
@@ -70,15 +123,20 @@ yongsan-tong-map/
 ├── editor.html              편집기 (빌드 결과물)
 ├── build.py                 위 두 파일을 만드는 빌드 스크립트
 ├── README.md
+├── data/
+│   └── 한남동_tong.json      편집기가 "깃허브에 저장"할 때 갱신하는 실제 데이터 (뷰어가 읽어감)
 └── src/
     ├── viewer_template.html   뷰어 원본 템플릿
     ├── editor_template.html   편집기 원본 템플릿
     ├── all_dong_boundaries.json   용산구 16개 동 외곽선 (뷰어·편집기 공통, 유일한 기준)
-    ├── hannam_tong.json           한남동 통/반 경계 + 통장/반장 이름
+    ├── hannam_tong.json           한남동 통/반 경계 초기값 (index.html에 내장되는 기본값)
     ├── parcels_by_dong.json       16개 동 전체 필지(지번) 데이터 (14MB, 지번 편입 기능용)
     └── vendor/
         └── turf.min.js            지오메트리 연산 라이브러리 (turf.js, 편집기 전용)
 ```
+
+`data/`는 `src/`와 달리 빌드에 쓰이는 원본이 아니라, 편집기가 실제로 읽고 쓰는 "살아있는"
+데이터입니다. 편집기에서 저장할 때마다 이 폴더 안의 파일이 갱신됩니다.
 
 ## 이 저장소를 처음 올릴 때
 

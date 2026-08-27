@@ -12,6 +12,11 @@ src/ 안의 템플릿(*_template.html)과 데이터(JSON)를 하나로 합쳐서
 카카오맵 앱키를 바꾸고 싶으면 아래 KAKAO_KEY 값을 바꾸세요.
 (카카오 디벨로퍼스 콘솔에서 이 앱키에 배포할 도메인을 "플랫폼 > Web"에
 반드시 등록해야 지도가 뜹니다. README.md 참고.)
+
+GH_OWNER/GH_REPO 를 채워두면, 뷰어(index.html)가 열릴 때마다 이 저장소의
+GH_TONG_PATH_PATTERN 경로에서 최신 통/반 데이터를 직접 받아옵니다 (편집기의
+"깃허브에 저장" 기능과 짝을 이룸). 비워두면 이 기능은 그냥 꺼지고 내장된
+기본 데이터만 씁니다.
 """
 import os
 
@@ -19,6 +24,11 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.join(BASE_DIR, 'src')
 
 KAKAO_KEY = 'd42eb2a3ed96b83cec2ba9aeaadfb84f'
+
+GH_OWNER = ''  # 예: 'myuser' (본인 깃허브 사용자명/조직명으로 채우세요)
+GH_REPO = 'yongsan-tong-map'
+GH_BRANCH = 'main'
+GH_TONG_PATH_PATTERN = 'data/{dong}_tong.json'
 
 
 def read(relpath):
@@ -54,6 +64,10 @@ def build_viewer():
     out = tpl.replace('__KAKAO_KEY__', KAKAO_KEY)
     out = out.replace('/* __TONG_DATA__ */', tong_data)
     out = out.replace('/* __ALL_DONG_BOUNDARIES__ */', all_dong)
+    out = out.replace('__GH_OWNER__', GH_OWNER)
+    out = out.replace('__GH_REPO__', GH_REPO)
+    out = out.replace('__GH_BRANCH__', GH_BRANCH)
+    out = out.replace('__GH_TONG_PATH_PATTERN__', GH_TONG_PATH_PATTERN)
     write('index.html', out)
 
 

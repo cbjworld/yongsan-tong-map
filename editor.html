@@ -117,9 +117,10 @@
 
   <h2>기존 JSON 불러오기 (이어서 편집)</h2>
   <div class="row">
-    <label class="fileBtn" for="loadTongInput">통 경계 JSON</label>
+    <button id="ghLoadBtn" class="primary">깃허브에서 불러오기</button>
+    <label class="fileBtn" for="loadTongInput">파일에서: 통 경계 JSON</label>
     <input type="file" id="loadTongInput" accept=".json">
-    <label class="fileBtn" for="loadBoundaryInput">외곽선 JSON</label>
+    <label class="fileBtn" for="loadBoundaryInput">파일에서: 외곽선 JSON</label>
     <input type="file" id="loadBoundaryInput" accept=".json">
   </div>
   <div id="loadStatus" class="status"></div>
@@ -195,6 +196,27 @@
     <button id="exportTongBtn" class="primary">통 경계 JSON</button>
     <button id="exportBoundaryBtn">외곽선 JSON</button>
   </div>
+
+  <h2>깃허브에 자동 저장</h2>
+  <p style="color:#888; font-size:12px; margin:0 0 8px;">
+    여기 저장하면 지도(뷰어)를 새로고침할 때 자동으로 최신 내용이 뜹니다.
+    토큰은 이 브라우저에만 저장되고 파일 안에는 남지 않지만, 이 저장소에 쓰기 권한이 있는
+    토큰이니 공용 컴퓨터에서는 입력하지 마세요. (저장소 Contents 권한만 있는 fine-grained 토큰 권장)
+  </p>
+  <label class="fieldLabel">저장소 소유자 (예: myuser)</label>
+  <input type="text" id="ghOwner" placeholder="github 사용자명 또는 조직명">
+  <label class="fieldLabel">저장소 이름</label>
+  <input type="text" id="ghRepo" placeholder="예: yongsan-tong-map">
+  <label class="fieldLabel">브랜치</label>
+  <input type="text" id="ghBranch" placeholder="main" value="main">
+  <label class="fieldLabel">저장 경로 ({dong} 은 동 이름으로 치환됨)</label>
+  <input type="text" id="ghPath" placeholder="data/{dong}_tong.json" value="data/{dong}_tong.json">
+  <label class="fieldLabel">개인 액세스 토큰 (repo Contents 쓰기 권한)</label>
+  <input type="password" id="ghToken" placeholder="ghp_...">
+  <div class="row">
+    <button id="ghSaveBtn" class="primary">깃허브에 저장</button>
+  </div>
+  <div id="githubStatus" class="status"></div>
 </div>
 
 <script type="text/javascript">
@@ -1285,7 +1307,7 @@ function downloadJson(obj, filename) {
   setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
 }
 
-function exportTongJson() {
+function buildTongJsonObject() {
   var body = Object.keys(tongShapes).map(Number).sort(function (a, b) { return a - b; }).map(function (tongNum) {
     var shape = tongShapes[tongNum];
     var lngs = [], lats = [];
@@ -1319,7 +1341,12 @@ function exportTongJson() {
     };
   });
   var dongName = document.getElementById('dongNameInput').value.trim() || '한남동';
-  downloadJson({ head: { DATA_COUNT: body.length, DONG_NAME: dongName }, body: body }, dongName + '_tong.json');
+  return { head: { DATA_COUNT: body.length, DONG_NAME: dongName }, body: body };
+}
+
+function exportTongJson() {
+  var data = buildTongJsonObject();
+  downloadJson(data, data.head.DONG_NAME + '_tong.json');
 }
 
 function exportBoundaryJson() {
@@ -1331,6 +1358,102 @@ function exportBoundaryJson() {
   var polyCodi = boundaryRing.map(function (p) { return p[1] + '｜' + p[0]; }).join('∥');
   downloadJson({ resultList: [{ adminDong: '동경계', tongName: dongName, polyCodi: polyCodi }] }, dongName + '_boundary.json');
 }
+
+/* ---------- 깃허브 저장소에 직접 저장 (뷰어가 자동으로 읽어가는 데이터 소스) ----------
+   깃허브 Contents API로 저장소의 파일을 직접 커밋한다. 토큰은 이 브라우저의 localStorage에만
+   남기고(파일 소스에는 없음) 다른 곳으로 보내지 않는다. */
+var GH_SETTINGS_KEY = 'hannamTongGithubSettings_v1';
+
+function loadGithubSettings() {
+  try {
+    var raw = localStorage.getItem(GH_SETTINGS_KEY);
+    if (!raw) return;
+    var s = JSON.parse(raw);
+    document.getElementById('ghOwner').value = s.owner || '';
+    document.getElementById('ghRepo').value = s.repo || '';
+    document.getElementById('ghBranch').value = s.branch || 'main';
+    document.getElementById('ghPath').value = s.path || 'data/{dong}_tong.json';
+    document.getElementById('ghToken').value = s.token || '';
+  } catch (e) {}
+}
+
+function readGithubSettingsFromForm() {
+  var s = {
+    owner: document.getElementById('ghOwner').value.trim(),
+    repo: document.getElementById('ghRepo').value.trim(),
+    branch: document.getElementById('ghBranch').value.trim() || 'main',
+    path: document.getElementById('ghPath').value.trim() || 'data/{dong}_tong.json',
+    token: document.getElementById('ghToken').value.trim()
+  };
+  try { localStorage.setItem(GH_SETTINGS_KEY, JSON.stringify(s)); } catch (e) {}
+  return s;
+}
+
+function setGithubStatus(html, cls) {
+  var el = document.getElementById('githubStatus');
+  el.className = 'status' + (cls ? ' ' + cls : '');
+  el.innerHTML = html;
+}
+
+// btoa 는 라틴1 문자만 다루므로, 한글이 섞인 JSON 문자열을 UTF-8 바이트로 바꾼 뒤 base64 인코딩한다.
+function utf8ToBase64(str) {
+  var bytes = new TextEncoder().encode(str);
+  var binary = '';
+  bytes.forEach(function (b) { binary += String.fromCharCode(b); });
+  return btoa(binary);
+}
+
+function saveToGithub() {
+  var s = readGithubSettingsFromForm();
+  if (!s.owner || !s.repo || !s.token) {
+    setGithubStatus('저장소 소유자·이름·토큰을 모두 입력해주세요.', 'warn');
+    return;
+  }
+  var dongName = document.getElementById('dongNameInput').value.trim() || '한남동';
+  var path = s.path.replace('{dong}', dongName);
+  var apiUrl = 'https://api.github.com/repos/' + encodeURIComponent(s.owner) + '/' + encodeURIComponent(s.repo) + '/contents/' + path.split('/').map(encodeURIComponent).join('/');
+  var data = buildTongJsonObject();
+  var contentB64 = utf8ToBase64(JSON.stringify(data, null, 2));
+
+  setGithubStatus('저장 중…', 'ok');
+
+  fetch(apiUrl + '?ref=' + encodeURIComponent(s.branch), {
+    headers: { 'Authorization': 'token ' + s.token, 'Accept': 'application/vnd.github+json' }
+  }).then(function (res) {
+    if (res.status === 404) return null; // 이 경로에 파일이 아직 없으면 새로 만든다
+    if (!res.ok) throw new Error('기존 파일 조회 실패 (HTTP ' + res.status + ')');
+    return res.json();
+  }).then(function (existing) {
+    var body = {
+      message: dongName + ' 통/반 경계 갱신',
+      content: contentB64,
+      branch: s.branch
+    };
+    if (existing && existing.sha) body.sha = existing.sha;
+    return fetch(apiUrl, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'token ' + s.token,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+  }).then(function (res) {
+    if (!res.ok) {
+      return res.json().catch(function () { return {}; }).then(function (err) {
+        throw new Error(err.message || ('저장 실패 (HTTP ' + res.status + ')'));
+      });
+    }
+    return res.json();
+  }).then(function () {
+    setGithubStatus('저장했습니다 (' + path + '). 뷰어를 새로고침하면 반영됩니다.', 'ok');
+  }).catch(function (err) {
+    setGithubStatus('저장 실패: ' + err.message, 'warn');
+  });
+}
+
+document.getElementById('ghSaveBtn').addEventListener('click', saveToGithub);
 
 /* ---------- 동 선택 (미리 탑재된 16개 동 외곽선 자동 불러오기) ---------- */
 function boundaryRingFromDongData(data) {
@@ -1380,37 +1503,80 @@ function loadJsonFile(file, cb) {
   reader.readAsText(file);
 }
 
+// 파일에서 불러오든 깃허브에서 불러오든 결과 데이터 모양은 같으므로 적용 로직을 하나로 모은다.
+function applyTongJsonData(data, sourceLabel) {
+  var el = document.getElementById('loadStatus');
+  var body = data.body || [];
+  var loaded = {};
+  body.forEach(function (item) {
+    var tongNum = parseInt(item.COT_CONTS_NAME, 10);
+    var rings = (item.COT_COORD_DATA && item.COT_COORD_DATA[0]) || [];
+    var banLeaderNames = item.BAN_LEADER_NAMES || {};
+    var banShapes = {};
+    if (item.BAN_COORD_DATA) {
+      Object.keys(item.BAN_COORD_DATA).forEach(function (k) {
+        banShapes[parseInt(k, 10)] = { rings: item.BAN_COORD_DATA[k], chiefName: banLeaderNames[k] || '' };
+      });
+    }
+    loaded[tongNum] = { rings: rings, bans: item.BAN_LIST || [], banShapes: banShapes, chief: item.COT_LEADER_NAME || '' };
+  });
+  tongShapes = loaded;
+  if (data.head && data.head.DONG_NAME) {
+    document.getElementById('dongNameInput').value = data.head.DONG_NAME;
+    if (ALL_DONG_BOUNDARIES[data.head.DONG_NAME]) document.getElementById('dongSelect').value = data.head.DONG_NAME;
+  }
+  renderAll();
+  populateParcelSection();
+  el.className = 'status ok';
+  el.textContent = '통 경계 ' + Object.keys(loaded).length + '개 불러옴 · ' + sourceLabel;
+}
+
 document.getElementById('loadTongInput').addEventListener('change', function (ev) {
   var file = ev.target.files && ev.target.files[0];
   if (!file) return;
   loadJsonFile(file, function (err, data) {
     var el = document.getElementById('loadStatus');
     if (err) { el.className = 'status warn'; el.textContent = '읽기 실패: ' + err.message; return; }
-    var body = data.body || [];
-    var loaded = {};
-    body.forEach(function (item) {
-      var tongNum = parseInt(item.COT_CONTS_NAME, 10);
-      var rings = (item.COT_COORD_DATA && item.COT_COORD_DATA[0]) || [];
-      var banLeaderNames = item.BAN_LEADER_NAMES || {};
-      var banShapes = {};
-      if (item.BAN_COORD_DATA) {
-        Object.keys(item.BAN_COORD_DATA).forEach(function (k) {
-          banShapes[parseInt(k, 10)] = { rings: item.BAN_COORD_DATA[k], chiefName: banLeaderNames[k] || '' };
-        });
-      }
-      loaded[tongNum] = { rings: rings, bans: item.BAN_LIST || [], banShapes: banShapes, chief: item.COT_LEADER_NAME || '' };
-    });
-    tongShapes = loaded;
-    if (data.head && data.head.DONG_NAME) {
-      document.getElementById('dongNameInput').value = data.head.DONG_NAME;
-      if (ALL_DONG_BOUNDARIES[data.head.DONG_NAME]) document.getElementById('dongSelect').value = data.head.DONG_NAME;
-    }
-    renderAll();
-    populateParcelSection();
-    el.className = 'status ok';
-    el.textContent = '통 경계 ' + Object.keys(loaded).length + '개 불러옴 · ' + file.name;
+    applyTongJsonData(data, file.name);
   });
 });
+
+// base64 로 온 응답(UTF-8 바이트)을 다시 문자열로 되돌린다. atob 의 반대 방향.
+function base64ToUtf8(b64) {
+  var binary = atob(b64.replace(/\n/g, ''));
+  var bytes = new Uint8Array(binary.length);
+  for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new TextDecoder('utf-8').decode(bytes);
+}
+
+function loadFromGithub() {
+  var s = readGithubSettingsFromForm();
+  var el = document.getElementById('loadStatus');
+  if (!s.owner || !s.repo) {
+    el.className = 'status warn'; el.textContent = '먼저 "깃허브에 자동 저장" 항목에 저장소 정보를 입력해주세요.';
+    return;
+  }
+  var dongName = document.getElementById('dongNameInput').value.trim() || '한남동';
+  var path = s.path.replace('{dong}', dongName);
+  var apiUrl = 'https://api.github.com/repos/' + encodeURIComponent(s.owner) + '/' + encodeURIComponent(s.repo) + '/contents/' + path.split('/').map(encodeURIComponent).join('/');
+  var headers = { 'Accept': 'application/vnd.github+json' };
+  if (s.token) headers['Authorization'] = 'token ' + s.token;
+
+  el.className = 'status ok'; el.textContent = '깃허브에서 불러오는 중…';
+
+  fetch(apiUrl + '?ref=' + encodeURIComponent(s.branch), { headers: headers }).then(function (res) {
+    if (res.status === 404) throw new Error('저장소에 ' + path + ' 파일이 아직 없습니다.');
+    if (!res.ok) throw new Error('조회 실패 (HTTP ' + res.status + ')');
+    return res.json();
+  }).then(function (fileInfo) {
+    var data = JSON.parse(base64ToUtf8(fileInfo.content));
+    applyTongJsonData(data, '깃허브 (' + path + ')');
+  }).catch(function (err) {
+    el.className = 'status warn'; el.textContent = '불러오기 실패: ' + err.message;
+  });
+}
+
+document.getElementById('ghLoadBtn').addEventListener('click', loadFromGithub);
 
 document.getElementById('loadBoundaryInput').addEventListener('change', function (ev) {
   var file = ev.target.files && ev.target.files[0];
@@ -1502,6 +1668,7 @@ function sha256Hex(str) {
 
 function bootApp() {
   document.getElementById('pwGate').style.display = 'none';
+  loadGithubSettings();
   if (window.kakao && kakao.maps) {
     kakao.maps.load(init);
   } else {
