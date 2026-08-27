@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=Edge">
+<meta name="viewport" content="width=device-width, user-scalable=yes, initial-scale=1.0, maximum-scale=3.0, minimum-scale=1.0">
+<title>한남동 스마트 통·반 지도</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; height:100%; font-family:"Malgun Gothic","Apple SD Gothic Neo","NanumGothic",sans-serif; }
+  #gisMap { position:absolute; top:0; left:0; right:0; bottom:0; }
+
+  #topbar {
+    position:absolute; top:12px; left:12px; z-index:20;
+    background:#fff; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.18);
+    padding:12px 16px; max-width:300px;
+  }
+  #topbar h1 { font-size:16px; margin:0 0 6px; color:#222; }
+  #topbar .sub { font-size:11px; color:#777; margin-bottom:10px; line-height:1.5; }
+  .fileBtn {
+    display:inline-block; background:#004c80; color:#fff; font-size:12px;
+    padding:7px 12px; border-radius:6px; cursor:pointer; border:none; margin-right:6px; margin-bottom:6px;
+  }
+  .fileBtn:hover { background:#003a63; }
+  input[type=file] { display:none; }
+  #fileStatus { font-size:11px; color:#333; margin-top:4px; line-height:1.5; word-break:break-all; }
+  #fileStatus .ok { color:#0a7a2f; font-weight:600; }
+  #fileStatus .warn { color:#c0392b; font-weight:600; }
+
+  #legendPanel {
+    position:absolute; top:12px; right:12px; z-index:20;
+    background:#fff; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.18);
+    width:230px; max-height:82vh; overflow-y:auto; padding:10px 0;
+  }
+  #legendPanel h2 { font-size:13px; margin:0; padding:0 14px 8px; color:#222; border-bottom:1px solid #eee; }
+  #legendList { list-style:none; margin:0; padding:0; }
+  #legendList li {
+    display:flex; align-items:center; gap:8px; padding:6px 14px; font-size:12px; color:#333; cursor:pointer;
+  }
+  #legendList li:hover { background:#f3f7fb; }
+  #legendList li .swatch { width:12px; height:12px; border-radius:3px; flex:0 0 auto; }
+  #legendList li .cnt { margin-left:auto; color:#888; font-size:11px; }
+  #legendList li.banItem { padding-left:28px; font-size:11.5px; color:#555; }
+  #legendList li.banItem .swatch { width:9px; height:9px; border:1px dashed #888; background:transparent !important; border-radius:2px; }
+
+  .tong-label {
+    font-family:"NanumGothic","Malgun Gothic","sans-serif";
+    text-align:center; color:#fff; font-size:11px; font-weight:700;
+    background-color:rgba(0,76,128,.92); border-radius:8px; padding:2px 6px;
+    white-space:nowrap; transform:translate(-50%,-50%); box-shadow:0 1px 3px rgba(0,0,0,.3);
+  }
+  .ban-label {
+    font-family:"NanumGothic","Malgun Gothic","sans-serif";
+    text-align:center; color:#333; font-size:10px; font-weight:700;
+    background-color:rgba(255,255,255,.9); border:1px solid #999; border-radius:6px; padding:1px 5px;
+    white-space:nowrap; transform:translate(-50%,-50%); box-shadow:0 1px 2px rgba(0,0,0,.2);
+  }
+  .tooltip {
+    background:#fff; border:1px solid #888; border-radius:4px; font-size:12px;
+    padding:5px 8px; box-shadow:0 1px 4px rgba(0,0,0,.25); white-space:nowrap;
+  }
+  .tooltip .title { font-weight:700; color:#004c80; }
+
+  #loading {
+    position:absolute; inset:0; background:rgba(255,255,255,.85); z-index:50;
+    display:flex; align-items:center; justify-content:center; font-size:14px; color:#004c80;
+  }
+  #pwGate {
+    position: fixed; inset: 0; z-index: 9999; background: #1b2430;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #pwGate .pwCard {
+    background: #fff; border-radius: 12px; padding: 32px 28px; width: 280px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3); text-align: center;
+  }
+  #pwGate h2 { margin: 0 0 6px; font-size: 17px; }
+  #pwGate p { margin: 0 0 16px; color: #777; font-size: 13px; }
+  #pwGate input {
+    width: 100%; box-sizing: border-box; padding: 9px 10px; border-radius: 6px;
+    border: 1px solid #ccc; font-size: 14px; margin-bottom: 10px;
+  }
+  #pwGate button {
+    width: 100%; padding: 9px 10px; border-radius: 6px; border: none;
+    background: #4b6ebe; color: #fff; font-size: 14px; cursor: pointer;
+  }
+  #pwGate button:hover { background: #3d5aa0; }
+  #pwGate .pwError { color: #d33; font-size: 12px; margin-top: 8px; min-height: 14px; }
+</style>
+</head>
+<body>
+
+<div id="pwGate">
+  <div class="pwCard">
+    <h2>접속 확인</h2>
+    <p>비밀번호를 입력해주세요.</p>
+    <input type="password" id="pwInput" autocomplete="off" placeholder="비밀번호">
+    <button id="pwSubmitBtn">확인</button>
+    <div class="pwError" id="pwError"></div>
+  </div>
+</div>
+
+<div id="gisMap"></div>
+<div id="loading">지도를 준비하는 중입니다…</div>
+
+<div id="topbar">
+  <h1>한남동 스마트 통·반 지도</h1>
+  <div class="sub">통 경계 편집기(hannam_tong_editor.html)에서 만든 JSON을 불러오면 그 경계로 통이 그려집니다.</div>
+  <label style="font-size:11px;color:#555;display:block;margin-bottom:4px;">동 선택 (기본 외곽선)</label>
+  <select id="dongBoundarySelect" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #ccc;font-size:12px;margin-bottom:8px;"></select>
+  <label class="fileBtn" for="tongFileInput">통 경계 JSON 불러오기</label>
+  <input type="file" id="tongFileInput" accept=".json">
+  <label class="fileBtn" for="boundaryFileInput">외곽선 JSON 불러오기</label>
+  <input type="file" id="boundaryFileInput" accept=".json">
+  <div id="fileStatus"></div>
+</div>
+
+<div id="legendPanel">
+  <h2>통 목록 <span id="legendCount" style="color:#999;font-weight:400;"></span></h2>
+  <ul id="legendList"></ul>
+</div>
+
+<script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=__KAKAO_KEY__&libraries=services"></script>
+
+<script type="text/javascript">
+//<![CDATA[
+
+/* ---------- 기본 데이터 (통 경계 편집기에서 내보낸 JSON) ---------- */
+var TONG_DATA = /* __TONG_DATA__ */;
+var BOUNDARY_DATA = /* __BOUNDARY_DATA__ */;
+
+/* ---------- 용산구 16개 동 외곽선 (행정동 경계, 미리 탑재됨) ---------- */
+var ALL_DONG_BOUNDARIES = /* __ALL_DONG_BOUNDARIES__ */;
+var DEFAULT_DONG_NAME = '한남동';
+
+var LS_TONG_KEY = 'hannam_tong_data_v1';
+var LS_BOUNDARY_KEY = 'hannam_boundary_data_v1';
+
+var oMap, tongOverlay, labelOverlays = [], polygonLayers = [], boundaryLines = [];
+var banPolygonLayers = [], banLabelOverlays = [];
+var colorCache = {};
+var activeHoverPolygon = null;
+var hoverLeaveTimer = null;
+
+function tongColor(t) {
+  if (colorCache[t]) return colorCache[t];
+  var hue = (t * 47) % 360;
+  var c = { stroke: 'hsl(' + hue + ', 62%, 34%)', fill: 'hsl(' + hue + ', 70%, 55%)' };
+  colorCache[t] = c;
+  return c;
+}
+
+// 통 폴리곤은 기본 fillOpacity 0.35 / 호버 시 0.65, 반 폴리곤은 기본 0(윤곽선만) / 호버 시 0.5로
+// 각자 다르므로, 폴리곤 자신에 기본값·호버값을 붙여두고 그 값으로 켜고 끈다.
+function hoverEnter(polygon, tooltipHtml, latLng) {
+  if (hoverLeaveTimer) { clearTimeout(hoverLeaveTimer); hoverLeaveTimer = null; }
+  if (activeHoverPolygon && activeHoverPolygon !== polygon) {
+    activeHoverPolygon.setOptions({ fillOpacity: activeHoverPolygon.__baseOpacity });
+  }
+  activeHoverPolygon = polygon;
+  polygon.setOptions({ fillOpacity: polygon.__hoverOpacity != null ? polygon.__hoverOpacity : 0.65 });
+  tongOverlay.setContent(tooltipHtml);
+  tongOverlay.setPosition(latLng);
+  tongOverlay.setMap(oMap);
+}
+
+function hoverLeave(polygon) {
+  if (hoverLeaveTimer) clearTimeout(hoverLeaveTimer);
+  hoverLeaveTimer = setTimeout(function () {
+    if (activeHoverPolygon === polygon) {
+      polygon.setOptions({ fillOpacity: polygon.__baseOpacity != null ? polygon.__baseOpacity : 0.35 });
+      tongOverlay.setMap(null);
+      activeHoverPolygon = null;
+    }
+    hoverLeaveTimer = null;
+  }, 70);
+}
+
+// tong.json 의 COT_COORD_DATA[0] 은 통 하나를 이루는 "바깥 고리"들의 배열이다
+// (조각이 여러 개면 서로 떨어진 여러 필지 묶음이라는 뜻; 구멍은 다루지 않는다).
+function tongFeaturesFromData(tongData) {
+  var body = (tongData && tongData.body) || [];
+  return body.map(function (item) {
+    var rings = (item.COT_COORD_DATA && item.COT_COORD_DATA[0]) || [];
+    var center = null;
+    if (item.COT_VALUE_01) {
+      var parts = item.COT_VALUE_01.split('｜');
+      center = [parseFloat(parts[1]), parseFloat(parts[0])]; // [lng,lat]
+    } else if (rings.length) {
+      var ring0 = rings[0], sx = 0, sy = 0;
+      ring0.forEach(function (p) { sx += p[0]; sy += p[1]; });
+      center = [sx / ring0.length, sy / ring0.length];
+    }
+    var banLeaderNames = item.BAN_LEADER_NAMES || {};
+    var banShapes = [];
+    if (item.BAN_COORD_DATA) {
+      Object.keys(item.BAN_COORD_DATA).forEach(function (k) {
+        var banRings = item.BAN_COORD_DATA[k];
+        if (banRings && banRings.length) banShapes.push({ ban: parseInt(k, 10), rings: banRings, chiefName: banLeaderNames[k] || '' });
+      });
+    }
+    return {
+      tong: parseInt(item.COT_CONTS_NAME, 10),
+      rings: rings,
+      center: center,
+      chief: item.COT_LEADER_NAME || '',
+      banShapes: banShapes
+    };
+  });
+}
+
+function boundaryRingFromData(boundaryData) {
+  var list = (boundaryData && boundaryData.resultList) || [];
+  var entry = list.filter(function (e) { return e.adminDong === '동경계' || e.adminDong === '구경계'; })[0];
+  if (!entry) return [];
+  return entry.polyCodi.split('∥').map(function (pair) {
+    var p = pair.split('｜');
+    return [parseFloat(p[1]), parseFloat(p[0])]; // [lng,lat]
+  });
+}
+
+function clearOverlays() {
+  if (hoverLeaveTimer) { clearTimeout(hoverLeaveTimer); hoverLeaveTimer = null; }
+  activeHoverPolygon = null;
+  polygonLayers.forEach(function (p) { p.setMap(null); });
+  polygonLayers = [];
+  labelOverlays.forEach(function (l) { l.setMap(null); });
+  labelOverlays = [];
+  banPolygonLayers.forEach(function (p) { p.setMap(null); });
+  banPolygonLayers = [];
+  banLabelOverlays.forEach(function (l) { l.setMap(null); });
+  banLabelOverlays = [];
+  boundaryLines.forEach(function (l) { l.setMap(null); });
+  boundaryLines = [];
+  if (tongOverlay) tongOverlay.setMap(null);
+}
+
+function renderBoundary(ring) {
+  if (!ring || !ring.length) return;
+  var path = ring.map(function (p) { return new kakao.maps.LatLng(p[1], p[0]); });
+  var line = new kakao.maps.Polyline({
+    map: oMap, path: path, strokeWeight: 4, strokeColor: '#4b6ebe',
+    strokeOpacity: 0.9, strokeStyle: 'solid', zIndex: 10
+  });
+  boundaryLines.push(line);
+}
+
+function renderTongFeatures(tongFeatures) {
+  var legendList = document.getElementById('legendList');
+  legendList.innerHTML = '';
+  document.getElementById('legendCount').textContent = '(' + tongFeatures.length + '개)';
+
+  tongFeatures.sort(function (a, b) { return a.tong - b.tong; }).forEach(function (tf) {
+    var colors = tongColor(tf.tong);
+    var flatPaths = tf.rings.map(function (ring) {
+      return ring.map(function (p) { return new kakao.maps.LatLng(p[1], p[0]); });
+    });
+
+    var polygon = new kakao.maps.Polygon({
+      map: oMap, path: flatPaths, strokeWeight: 2, strokeColor: colors.stroke,
+      strokeOpacity: 0.9, fillColor: colors.fill, fillOpacity: 0.35, zIndex: 3
+    });
+    polygon.__baseOpacity = 0.35;
+    polygon.__hoverOpacity = 0.65;
+    polygonLayers.push(polygon);
+
+    var tooltipHtml = '<div class="tooltip"><span class="title">한남동 ' + tf.tong + '통</span>' +
+      (tf.chief ? '<br/>통장: ' + tf.chief : '') + '</div>';
+
+    kakao.maps.event.addListener(polygon, 'mouseover', function (e) { hoverEnter(polygon, tooltipHtml, e.latLng); });
+    kakao.maps.event.addListener(polygon, 'mousemove', function (e) { if (activeHoverPolygon === polygon) tongOverlay.setPosition(e.latLng); });
+    kakao.maps.event.addListener(polygon, 'mouseout', function () { hoverLeave(polygon); });
+
+    if (tf.center) {
+      var labelOverlay = new kakao.maps.CustomOverlay({
+        position: new kakao.maps.LatLng(tf.center[1], tf.center[0]),
+        content: '<div class="tong-label">' + tf.tong + '통</div>',
+        zIndex: 5
+      });
+      labelOverlay.setMap(oMap);
+      labelOverlays.push(labelOverlay);
+    }
+
+    // 목록에서 반 항목을 만들 때 재사용할 수 있도록, 반마다 폴리곤/중심점/툴팁을 모아둔다.
+    var banEntries = [];
+    (tf.banShapes || []).forEach(function (bs) {
+      var banFlatPaths = bs.rings.map(function (ring) {
+        return ring.map(function (p) { return new kakao.maps.LatLng(p[1], p[0]); });
+      });
+      var banPolygon = new kakao.maps.Polygon({
+        map: oMap, path: banFlatPaths, strokeWeight: 1.5, strokeColor: colors.stroke,
+        strokeOpacity: 0.85, strokeStyle: 'shortdash', fillColor: colors.fill, fillOpacity: 0, zIndex: 4
+      });
+      banPolygon.__baseOpacity = 0;
+      banPolygon.__hoverOpacity = 0.5;
+      banPolygonLayers.push(banPolygon);
+
+      var banCenter = null;
+      if (bs.rings[0] && bs.rings[0].length) {
+        var r0 = bs.rings[0], bsx = 0, bsy = 0;
+        r0.forEach(function (p) { bsx += p[0]; bsy += p[1]; });
+        banCenter = [bsx / r0.length, bsy / r0.length];
+      }
+
+      var banTooltipHtml = '<div class="tooltip"><span class="title">한남동 ' + tf.tong + '통 ' + bs.ban + '반</span>' +
+        (bs.chiefName ? '<br/>반장: ' + bs.chiefName : '') + '</div>';
+
+      if (banCenter) {
+        var banLabelLatLng = new kakao.maps.LatLng(banCenter[1], banCenter[0]);
+        // 반 이름표는 지도 위에 얹히는 별도 DOM 엘리먼트라, 그 위에 직접 mouseenter/mouseleave 를
+        // 걸어두면 통 폴리곤(아래 깔린 지도 도형)의 마우스오버와 섞이지 않고 그 반만 강조할 수 있다.
+        var banLabelDiv = document.createElement('div');
+        banLabelDiv.className = 'ban-label';
+        banLabelDiv.textContent = tf.tong + '-' + bs.ban + '반';
+        banLabelDiv.addEventListener('mouseenter', function () { hoverEnter(banPolygon, banTooltipHtml, banLabelLatLng); });
+        banLabelDiv.addEventListener('mouseleave', function () { hoverLeave(banPolygon); });
+
+        var banLabel = new kakao.maps.CustomOverlay({
+          position: banLabelLatLng,
+          content: banLabelDiv,
+          zIndex: 6
+        });
+        banLabel.setMap(oMap);
+        banLabelOverlays.push(banLabel);
+      }
+
+      banEntries.push({ ban: bs.ban, polygon: banPolygon, center: banCenter, tooltipHtml: banTooltipHtml, chiefName: bs.chiefName });
+    });
+    banEntries.sort(function (a, b) { return a.ban - b.ban; });
+
+    var li = document.createElement('li');
+    var swatch = document.createElement('span');
+    swatch.className = 'swatch';
+    swatch.style.background = colors.fill;
+    var label = document.createElement('span');
+    label.textContent = tf.tong + '통' + (tf.chief ? ' · 통장 ' + tf.chief : '');
+    li.appendChild(swatch); li.appendChild(label);
+    if (tf.center) {
+      li.addEventListener('mouseenter', function () { hoverEnter(polygon, tooltipHtml, new kakao.maps.LatLng(tf.center[1], tf.center[0])); });
+      li.addEventListener('mouseleave', function () { hoverLeave(polygon); });
+      li.addEventListener('click', function () { oMap.setCenter(new kakao.maps.LatLng(tf.center[1], tf.center[0])); oMap.setLevel(4); });
+    }
+    legendList.appendChild(li);
+
+    banEntries.forEach(function (be) {
+      var bli = document.createElement('li');
+      bli.className = 'banItem';
+      var bSwatch = document.createElement('span');
+      bSwatch.className = 'swatch';
+      var bLabel = document.createElement('span');
+      bLabel.textContent = tf.tong + '통 ' + be.ban + '반' + (be.chiefName ? ' · 반장 ' + be.chiefName : '');
+      bli.appendChild(bSwatch); bli.appendChild(bLabel);
+      if (be.center) {
+        bli.addEventListener('mouseenter', function () { hoverEnter(be.polygon, be.tooltipHtml, new kakao.maps.LatLng(be.center[1], be.center[0])); });
+        bli.addEventListener('mouseleave', function () { hoverLeave(be.polygon); });
+        bli.addEventListener('click', function () { oMap.setCenter(new kakao.maps.LatLng(be.center[1], be.center[0])); oMap.setLevel(3); });
+      }
+      legendList.appendChild(bli);
+    });
+  });
+}
+
+function renderAll(tongData, boundaryData) {
+  clearOverlays();
+  renderBoundary(boundaryRingFromData(boundaryData));
+  renderTongFeatures(tongFeaturesFromData(tongData));
+  updateBanLabelVisibility();
+}
+
+// 지도를 일정 수준 이상 축소하면(레벨 숫자가 커지면) 반 이름표는 너무 빽빽해져서 안 보이게 하고
+// 통 이름표만 남긴다. 레벨 값 자체는 그대로 두고 화면 표시 여부만 토글한다.
+var BAN_LABEL_MAX_LEVEL = 3;
+function updateBanLabelVisibility() {
+  if (!oMap) return;
+  var show = oMap.getLevel() <= BAN_LABEL_MAX_LEVEL;
+  banLabelOverlays.forEach(function (l) { l.setMap(show ? oMap : null); });
+}
+
+function setStatus(html) {
+  document.getElementById('fileStatus').innerHTML = html;
+}
+
+function loadJsonFile(file, cb) {
+  var reader = new FileReader();
+  reader.onload = function (e) {
+    try { cb(null, JSON.parse(e.target.result)); }
+    catch (err) { cb(err); }
+  };
+  reader.onerror = function () { cb(new Error('파일을 읽지 못했습니다.')); };
+  reader.readAsText(file);
+}
+
+document.getElementById('tongFileInput').addEventListener('change', function (ev) {
+  var file = ev.target.files && ev.target.files[0];
+  if (!file) return;
+  loadJsonFile(file, function (err, data) {
+    if (err) { setStatus('<span class="warn">통 경계 JSON을 읽지 못했습니다: ' + err.message + '</span>'); return; }
+    TONG_DATA = data;
+    try { localStorage.setItem(LS_TONG_KEY, JSON.stringify(data)); } catch (e) {}
+    renderAll(TONG_DATA, BOUNDARY_DATA);
+    setStatus('<span class="ok">통 경계 반영 완료</span> · ' + file.name);
+  });
+});
+
+document.getElementById('boundaryFileInput').addEventListener('change', function (ev) {
+  var file = ev.target.files && ev.target.files[0];
+  if (!file) return;
+  loadJsonFile(file, function (err, data) {
+    if (err) { setStatus('<span class="warn">외곽선 JSON을 읽지 못했습니다: ' + err.message + '</span>'); return; }
+    BOUNDARY_DATA = data;
+    try { localStorage.setItem(LS_BOUNDARY_KEY, JSON.stringify(data)); } catch (e) {}
+    renderAll(TONG_DATA, BOUNDARY_DATA);
+    setStatus('<span class="ok">외곽선 반영 완료</span> · ' + file.name);
+  });
+});
+
+function emptyTongData(dongName) {
+  return { head: { DATA_COUNT: 0, DONG_NAME: dongName }, body: [] };
+}
+
+function populateDongBoundarySelect() {
+  var sel = document.getElementById('dongBoundarySelect');
+  sel.innerHTML = '';
+  Object.keys(ALL_DONG_BOUNDARIES).forEach(function (name) {
+    var opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    sel.appendChild(opt);
+  });
+  sel.value = DEFAULT_DONG_NAME;
+}
+
+document.getElementById('dongBoundarySelect').addEventListener('change', function () {
+  var name = this.value;
+  var data = ALL_DONG_BOUNDARIES[name];
+  if (!data) return;
+  BOUNDARY_DATA = data;
+  try { localStorage.setItem(LS_BOUNDARY_KEY, JSON.stringify(data)); } catch (e) {}
+  // 동을 바꾸면 이전 동의 통 경계는 더는 맞지 않으므로 비워둔다. (필요하면 그 동의 통 경계 JSON을 따로 불러오세요.)
+  TONG_DATA = emptyTongData(name);
+  try { localStorage.removeItem(LS_TONG_KEY); } catch (e) {}
+  renderAll(TONG_DATA, BOUNDARY_DATA);
+  setStatus('<span class="ok">' + name + ' 기본 외곽선 표시 중</span> (통 경계는 초기화됨 · 필요하면 JSON을 불러오세요)');
+});
+
+function init() {
+  var mapContainer = document.getElementById('gisMap');
+  oMap = new kakao.maps.Map(mapContainer, { center: new kakao.maps.LatLng(37.53745, 127.00595), level: 5 });
+  tongOverlay = new kakao.maps.CustomOverlay({ zIndex: 9 });
+  kakao.maps.event.addListener(oMap, 'zoom_changed', updateBanLabelVisibility);
+
+  populateDongBoundarySelect();
+
+  var storedTong = null, storedBoundary = null;
+  try {
+    var rawT = localStorage.getItem(LS_TONG_KEY);
+    if (rawT) storedTong = JSON.parse(rawT);
+    var rawB = localStorage.getItem(LS_BOUNDARY_KEY);
+    if (rawB) storedBoundary = JSON.parse(rawB);
+  } catch (e) {}
+
+  var tongData = storedTong || TONG_DATA;
+  var boundaryData = storedBoundary || BOUNDARY_DATA;
+  renderAll(tongData, boundaryData);
+
+  setStatus(storedTong ? '<span class="ok">최근 불러온 JSON 사용 중</span>' : '기본 데이터로 표시 중');
+  document.getElementById('loading').style.display = 'none';
+}
+
+/* ---------- 접속 비밀번호 확인 ----------
+   이 파일은 그냥 정적 HTML이라 파일 자체 안에는 진짜 보안을 걸 수 없다(소스 보면 다 보임).
+   그래도 회사 사람이 아닌 사람이 우연히 링크를 열어봤을 때 최소한의 문턱은 되도록,
+   비밀번호를 평문으로 남기지 않고 SHA-256 해시로만 비교한다. */
+var PW_HASH = 'e12ac2180c9f6fe9db6add3f54fcef4dad2ebcdfb2cbeac0d0e80ccba6ccae24';
+var PW_SESSION_KEY = 'hannamTongAuthOk_v1';
+
+function sha256Hex(str) {
+  var data = new TextEncoder().encode(str);
+  return crypto.subtle.digest('SHA-256', data).then(function (buf) {
+    return Array.prototype.map.call(new Uint8Array(buf), function (b) {
+      return ('0' + b.toString(16)).slice(-2);
+    }).join('');
+  });
+}
+
+function bootApp() {
+  document.getElementById('pwGate').style.display = 'none';
+  if (window.kakao && kakao.maps) {
+    kakao.maps.load(init);
+  } else {
+    document.getElementById('loading').textContent = '카카오맵 SDK를 불러오지 못했습니다. 앱키 및 플랫폼 도메인 등록을 확인해주세요.';
+  }
+}
+
+function tryPassword() {
+  var val = document.getElementById('pwInput').value;
+  sha256Hex(val).then(function (hash) {
+    if (hash === PW_HASH) {
+      try { sessionStorage.setItem(PW_SESSION_KEY, '1'); } catch (e) {}
+      bootApp();
+    } else {
+      document.getElementById('pwError').textContent = '비밀번호가 올바르지 않습니다.';
+      document.getElementById('pwInput').value = '';
+      document.getElementById('pwInput').focus();
+    }
+  });
+}
+
+document.getElementById('pwSubmitBtn').addEventListener('click', tryPassword);
+document.getElementById('pwInput').addEventListener('keydown', function (ev) {
+  if (ev.key === 'Enter') { ev.preventDefault(); tryPassword(); }
+});
+
+window.addEventListener('load', function () {
+  var alreadyAuthed = false;
+  try { alreadyAuthed = sessionStorage.getItem(PW_SESSION_KEY) === '1'; } catch (e) {}
+  if (alreadyAuthed) {
+    bootApp();
+  } else {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('pwInput').focus();
+  }
+});
+//]]>
+</script>
+</body>
+</html>
