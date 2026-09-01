@@ -175,7 +175,10 @@
       반대로 "이 동의 모든 지번이 지금 몇 통 몇 반인지" 한 번에 뽑아낼 수도 있어요. 지금
       그려진 통/반 경계를 기준으로, 이 동의 지번마다 그 안(정확히는 필지 중심점)이 어느
       통·반 폴리곤에 들어가는지 하나씩 확인해서 표로 만듭니다. 아직 어느 통에도 안 들어간
-      지번은 통/반 칸이 빈 채로 나옵니다.
+      지번은 통/반 칸이 빈 채로 나옵니다. 지목이 도로(도)·구거(구)인 지번은 목록에서 자동
+      제외되고, 지번 칸에는 지목 글자를 뺀 번지만 나옵니다. 도로명주소는 각 지번 중심점을
+      카카오 좌표→주소 변환으로 조회해서 같이 넣는데, 지번 수가 많으면 시간이 좀 걸릴 수
+      있고 도로명주소가 없는 지번(도로명이 없는 곳 등)은 빈 칸으로 나옵니다.
     </div>
     <div class="row">
       <button id="exportParcelTongBanBtn" style="flex:1;">지번별 통/반 목록 CSV로 내보내기</button>
@@ -1349,15 +1352,71 @@ function downloadCsv(rows, filename) {
   setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
 }
 
+// 지번 표기 끝에 붙는 지목 글자만 뽑아낸다 ("771-19대" -> "대", "산10-2도" -> "도").
+function parcelJimok(s) {
+  var m = (s || '').replace(/\s+/g, '').match(/[가-힣]+$/);
+  return m ? m[0] : '';
+}
+
+var reverseGeocoderInstance = null;
+function getReverseGeocoder() {
+  if (!reverseGeocoderInstance) reverseGeocoderInstance = new kakao.maps.services.Geocoder();
+  return reverseGeocoderInstance;
+}
+
+// 필지 중심점(lng, lat)으로 카카오 좌표→주소 변환을 해서 도로명주소만 뽑는다.
+// 도로명주소가 없는 지번(도로명 미부여 지역 등)이나 조회 실패는 빈 문자열로 처리한다.
+function reverseGeocodeRoadAddress(lng, lat) {
+  return new Promise(function (resolve) {
+    try {
+      getReverseGeocoder().coord2Address(lng, lat, function (result, status) {
+        if (status === kakao.maps.services.Status.OK && result && result.length && result[0].road_address) {
+          resolve(result[0].road_address.address_name || '');
+        } else {
+          resolve('');
+        }
+      });
+    } catch (e) {
+      resolve('');
+    }
+  });
+}
+
+// items를 concurrency개씩 동시에 worker(item)로 처리한다 (도로명주소 조회를 순서대로 하나씩
+// 하면 지번이 많을 때 너무 오래 걸려서, 여러 개를 동시에 보내되 너무 많이 한꺼번에 보내진
+// 않게 개수를 제한한다).
+function runWithConcurrency(items, worker, concurrency, onProgress) {
+  return new Promise(function (resolve) {
+    if (!items.length) { resolve([]); return; }
+    var results = new Array(items.length);
+    var nextIndex = 0, doneCount = 0;
+    function startNext() {
+      if (nextIndex >= items.length) return;
+      var i = nextIndex++;
+      worker(items[i], i).then(function (r) {
+        results[i] = r;
+        doneCount++;
+        if (onProgress) onProgress(doneCount, items.length);
+        if (doneCount === items.length) resolve(results);
+        else startNext();
+      });
+    }
+    var starters = Math.min(concurrency, items.length);
+    for (var k = 0; k < starters; k++) startNext();
+  });
+}
+
 /* 반대 방향 조회: "이 지번이 몇 통 몇 반인가"가 아니라, 이 동의 지번 전체를 훑어서
    "지번 → 몇 통 몇 반"인지 한 번에 표로 뽑아낸다. 필지 편입 때 쓰는 findParcelOwner를
    지번 하나하나에 그대로 적용해서 뒤집어 쓰는 방식이라, 판정 기준(필지 중심점이 어느
-   통/반 폴리곤 안에 있는지)이 편입 기능과 항상 똑같다. */
+   통/반 폴리곤 안에 있는지)이 편입 기능과 항상 똑같다. 지목이 도로(도)·구거(구)인 지번은
+   실제 거주지가 아니므로 목록에서 빼고, 지번 칸에는 지목 글자를 뺀 번지만 넣으며, 각
+   지번 중심점의 도로명주소도 함께 조회해서 열을 추가한다. */
 function exportParcelTongBanList() {
   var el = document.getElementById('exportParcelTongBanStatus');
   var dongName = document.getElementById('dongNameInput').value.trim() || '한남동';
-  var parcels = currentDongParcels();
-  if (!parcels || !parcels.length) {
+  var allParcels = currentDongParcels();
+  if (!allParcels || !allParcels.length) {
     el.className = 'status warn';
     el.textContent = '이 동은 지번(필지) 데이터가 없어서 추출할 수 없습니다.';
     return;
@@ -1368,29 +1427,63 @@ function exportParcelTongBanList() {
     return;
   }
 
+  var parcels = allParcels.filter(function (p) {
+    var jimok = parcelJimok(p.j);
+    return jimok !== '도' && jimok !== '구';
+  });
+  var excludedCount = allParcels.length - parcels.length;
+  if (!parcels.length) {
+    el.className = 'status warn';
+    el.textContent = '지목이 도로/구거가 아닌 지번이 없어서 추출할 목록이 없습니다.';
+    return;
+  }
+
   el.className = 'status ok';
-  el.textContent = '추출 중… (지번 ' + parcels.length + '개, 잠시 걸릴 수 있어요)';
+  el.textContent = '추출 중… (지번 ' + parcels.length + '개, 도로명주소 조회까지 포함이라 시간이 좀 걸려요)';
 
   // 필지 수가 많으면(수천 개) turf 연산이 화면을 잠깐 멈추게 할 수 있어서, 상태 문구를
   // 먼저 그리게 한 프레임 양보한 다음 실제 계산을 시작한다.
   setTimeout(function () {
-    var rows = [['동', '지번', '통', '반']];
-    var unassignedCount = 0;
-    parcels.forEach(function (p) {
-      var owner;
+    var entries = parcels.map(function (p) {
+      var feature = null, centroid = null, owner = { tongNum: null, banNum: null };
       try {
-        owner = findParcelOwner(parcelToTurfFeature(p));
-      } catch (e) {
-        owner = { tongNum: null, banNum: null };
-      }
-      if (owner.tongNum == null) unassignedCount++;
-      rows.push([dongName, p.j, owner.tongNum != null ? owner.tongNum : '', owner.banNum != null ? owner.banNum : '']);
+        feature = parcelToTurfFeature(p);
+        centroid = turf.centroid(feature);
+        owner = findParcelOwner(feature);
+      } catch (e) {}
+      return { p: p, centroid: centroid, owner: owner };
     });
+    var unassignedCount = entries.filter(function (e) { return e.owner.tongNum == null; }).length;
 
-    downloadCsv(rows, dongName + '_지번별_통반.csv');
-    el.className = 'status ok';
-    el.textContent = '지번 ' + parcels.length + '개 중 ' + (parcels.length - unassignedCount) + '개는 통/반이 확인됐고, ' +
-      unassignedCount + '개는 아직 어느 통에도 속하지 않아 빈 칸으로 나왔습니다.';
+    runWithConcurrency(entries, function (entry) {
+      if (!entry.centroid) return Promise.resolve('');
+      var c = entry.centroid.geometry.coordinates; // [lng, lat]
+      return reverseGeocodeRoadAddress(c[0], c[1]);
+    }, 6, function (done, total) {
+      if (done % 200 === 0 || done === total) {
+        el.textContent = '도로명주소 조회 중… (' + done + ' / ' + total + ')';
+      }
+    }).then(function (roadAddresses) {
+      var rows = [['동', '지번', '통', '반', '도로명주소']];
+      entries.forEach(function (entry, i) {
+        rows.push([
+          dongName,
+          jibunCore(entry.p.j),
+          entry.owner.tongNum != null ? entry.owner.tongNum : '',
+          entry.owner.banNum != null ? entry.owner.banNum : '',
+          roadAddresses[i] || ''
+        ]);
+      });
+
+      downloadCsv(rows, dongName + '_지번별_통반.csv');
+      el.className = 'status ok';
+      var noAddrCount = roadAddresses.filter(function (a) { return !a; }).length;
+      var msg = '지번 ' + parcels.length + '개 중 ' + (parcels.length - unassignedCount) + '개는 통/반이 확인됐고, ' +
+        unassignedCount + '개는 아직 어느 통에도 속하지 않아 빈 칸으로 나왔습니다.';
+      if (excludedCount) msg += ' 지목이 도로/구거인 ' + excludedCount + '개는 제외했습니다.';
+      if (noAddrCount) msg += ' 도로명주소는 ' + noAddrCount + '개를 찾지 못해 빈 칸입니다.';
+      el.textContent = msg;
+    });
   }, 30);
 }
 
