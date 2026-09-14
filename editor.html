@@ -213,30 +213,35 @@
   </div>
 
   <h2>깃허브에 자동 저장</h2>
-  <p style="color:#888; font-size:12px; margin:0 0 8px;">
-    여기서 저장하면 지도(뷰어)를 새로고침할 때 자동으로 최신 내용이 뜹니다.
-    실제 깃허브 쓰기 권한(토큰)은 이 파일 안에는 전혀 들어있지 않고, 별도의 작은 서버
-    (저장 대행 프록시)에만 비밀로 보관돼 있어요. 이 페이지는 위에서 입력한 접속
-    비밀번호만 그 서버로 보내서 "나 맞으니 대신 저장해줘"라고 요청하고, 서버가 비밀번호를
-    확인한 뒤 자기 토큰으로 깃허브에 저장합니다. 그래서 이 파일을 누가 열어봐도 진짜
-    토큰은 절대 보이지 않아요. 아래 값들은 build.py 에서 미리 채워둔 것이라 어느
-    컴퓨터에서 열어도 비밀번호만 입력하면 바로 저장이 되고, 필요하면 이 브라우저에서만
-    다르게 바꿔 쓸 수도 있어요.
-  </p>
-  <label class="fieldLabel">저장소 소유자 (예: myuser)</label>
-  <input type="text" id="ghOwner" placeholder="github 사용자명 또는 조직명">
-  <label class="fieldLabel">저장소 이름</label>
-  <input type="text" id="ghRepo" placeholder="예: yongsan-tong-map">
-  <label class="fieldLabel">브랜치</label>
-  <input type="text" id="ghBranch" placeholder="main" value="main">
-  <label class="fieldLabel">저장 경로 ({dong} 은 동 이름으로 치환됨)</label>
-  <input type="text" id="ghPath" placeholder="data/{dong}_tong.json" value="data/{dong}_tong.json">
-  <label class="fieldLabel">저장 대행 프록시 주소 (Cloudflare Worker)</label>
-  <input type="text" id="ghWorkerUrl" placeholder="https://xxxx.workers.dev">
+  <p class="hint" style="margin:0 0 8px;">여기서 저장하면 지도(뷰어)를 새로고침할 때 자동으로 최신 내용이 뜹니다.</p>
   <div class="row">
     <button id="ghSaveBtn" class="primary">깃허브에 저장</button>
   </div>
   <div id="githubStatus" class="status"></div>
+  <details style="margin-top:8px;">
+    <summary style="cursor:pointer; color:#888; font-size:11px;">고급 설정 (평소엔 건드릴 필요 없음)</summary>
+    <div style="margin-top:8px;">
+      <p style="color:#888; font-size:12px; margin:0 0 8px;">
+        실제 깃허브 쓰기 권한(토큰)은 이 파일 안에는 전혀 들어있지 않고, 별도의 작은 서버
+        (저장 대행 프록시)에만 비밀로 보관돼 있어요. 이 페이지는 위에서 입력한 접속
+        비밀번호만 그 서버로 보내서 "나 맞으니 대신 저장해줘"라고 요청하고, 서버가 비밀번호를
+        확인한 뒤 자기 토큰으로 깃허브에 저장합니다. 그래서 이 파일을 누가 열어봐도 진짜
+        토큰은 절대 보이지 않아요. 아래 값들은 build.py 에서 미리 채워둔 것이라 어느
+        컴퓨터에서 열어도 비밀번호만 입력하면 바로 저장이 되고, 필요하면 이 브라우저에서만
+        다르게 바꿔 쓸 수도 있어요.
+      </p>
+      <label class="fieldLabel">저장소 소유자 (예: myuser)</label>
+      <input type="text" id="ghOwner" placeholder="github 사용자명 또는 조직명">
+      <label class="fieldLabel">저장소 이름</label>
+      <input type="text" id="ghRepo" placeholder="예: yongsan-tong-map">
+      <label class="fieldLabel">브랜치</label>
+      <input type="text" id="ghBranch" placeholder="main" value="main">
+      <label class="fieldLabel">저장 경로 ({dong} 은 동 이름으로 치환됨)</label>
+      <input type="text" id="ghPath" placeholder="data/{dong}_tong.json" value="data/{dong}_tong.json">
+      <label class="fieldLabel">저장 대행 프록시 주소 (Cloudflare Worker)</label>
+      <input type="text" id="ghWorkerUrl" placeholder="https://xxxx.workers.dev">
+    </div>
+  </details>
 </div>
 
 <script type="text/javascript">
