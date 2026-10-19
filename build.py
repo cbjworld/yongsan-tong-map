@@ -26,13 +26,15 @@ Contents(Read and write)"로만 좁힌 fine-grained 토큰을 쓰고, 다른 권
 여기 값을 바꾼 뒤 다시 빌드하면 됩니다.
 """
 import os
+import json
+from pathlib import Path
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.join(BASE_DIR, 'src')
 
 KAKAO_KEY = 'd42eb2a3ed96b83cec2ba9aeaadfb84f'
 
-GH_OWNER = ''  # 예: 'myuser' (본인 깃허브 사용자명/조직명으로 채우세요)
+GH_OWNER = 'cbjworld'  # 예: 'myuser' (본인 깃허브 사용자명/조직명으로 채우세요)
 GH_REPO = 'yongsan-tong-map'
 GH_BRANCH = 'main'
 GH_TONG_PATH_PATTERN = 'data/{dong}_tong.json'
@@ -81,6 +83,8 @@ def build_viewer():
     out = out.replace('__GH_REPO__', GH_REPO)
     out = out.replace('__GH_BRANCH__', GH_BRANCH)
     out = out.replace('__GH_TONG_PATH_PATTERN__', GH_TONG_PATH_PATTERN)
+    saved = {f.name.removesuffix('_tong.json'): json.loads(f.read_text(encoding='utf-8')) for f in Path(BASE_DIR, 'data').glob('*_tong.json')}
+    out = out.replace('/* __SAVED_TONG_DATA__ */', json.dumps(saved, ensure_ascii=False))
     write('index.html', out)
 
 

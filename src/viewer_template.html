@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta http-equiv="X-UA-Compatible" content="IE=Edge">
 <meta name="viewport" content="width=device-width, user-scalable=yes, initial-scale=1.0, maximum-scale=3.0, minimum-scale=1.0">
-<title>한남동 스마트 통·반 지도</title>
+<title>용산 통·반 지도</title>
 <style>
   * { box-sizing: border-box; }
   html, body { margin:0; padding:0; height:100%; font-family:"Malgun Gothic","Apple SD Gothic Neo","NanumGothic",sans-serif; }
@@ -85,32 +85,91 @@
   }
   #pwGate button:hover { background: #3d5aa0; }
   #pwGate .pwError { color: #d33; font-size: 12px; margin-top: 8px; min-height: 14px; }
+
+  :root { --ink:#233d37; --accent:#256653; --line:#e1e7e3; }
+  html,body { font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif; color:var(--ink); overflow:hidden; background:#edf1ec; }
+  button,input,select { font:inherit; }
+  button,a,label.fileBtn,select { -webkit-tap-highlight-color:transparent; transition:background .18s,box-shadow .18s; }
+  button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,label.fileBtn:focus-within { outline:3px solid #93bfa9; outline-offset:3px; }
+  button:active,.fileBtn:active { transform:translateY(1px); }
+  .appbar { position:absolute; inset:0 0 auto; height:64px; z-index:30; display:flex; align-items:center; justify-content:space-between; padding:0 28px; background:#fff; border-bottom:1px solid var(--line); }
+  .brand { color:var(--ink); text-decoration:none; font-size:18px; font-weight:750; letter-spacing:-.8px; }
+  .brand span { color:#789087; font-weight:450; margin-left:10px; font-size:12px; letter-spacing:0; }
+  .appbar nav { display:flex; gap:6px; }
+  .appbar nav a { color:#6b7e76; padding:9px 16px; text-decoration:none; border-radius:7px; font-size:13px; font-weight:600; }
+  .appbar nav a:hover { background:#f1f5f2; }
+  .appbar nav a[aria-current=page] { background:#eaf2ed; color:var(--accent); }
+  #gisMap { top:64px; }
+  #loading { top:64px; color:var(--accent); font-size:13px; }
+  #topbar,#legendPanel,#panel { background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 4px 24px #21392c12; }
+  #topbar { top:84px; left:20px; padding:16px; width:260px; }
+  #topbar h1 { font-size:14px; margin-bottom:12px; letter-spacing:-.4px; }
+  #topbar select { margin:0!important; min-height:42px; background:#f6f8f5; border-color:var(--line)!important; font-size:14px!important; }
+  #topbar #refreshFromGithubBtn { margin:10px 0 0; width:100%; background:#f0f5f1; color:var(--accent); }
+  #fileStatus { margin-top:8px; font-size:11px; color:#708078; }
+  #legendPanel { top:84px; right:20px; width:210px; max-height:calc(100dvh - 110px); padding:16px 0 8px; }
+  #legendPanel h2 { padding:0 16px 14px; }
+  #legendList li { min-height:36px; padding:8px 16px; }
+  #legendList li:hover { background:#f1f6f2; }
+  #panel { top:84px; left:20px; bottom:20px; width:320px; padding:20px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:#c9d7ce transparent; }
+  #panel h1 { font-size:18px; margin:0 0 20px; letter-spacing:-.6px; }
+  #panel h2 { margin:24px 0 12px; padding-top:18px; font-size:13px; border-color:var(--line); }
+  #panel label.fieldLabel { display:block; margin:12px 0 6px; font-size:11px; color:#78877f; }
+  #panel input:not([type=file]),#panel select { min-height:38px; border:1px solid var(--line)!important; background:#fafbf9; border-radius:6px; padding:8px 10px; max-width:100%; }
+  #panel>input { width:100%; }
+  #panel button,#panel .fileBtn { min-height:34px; border-color:var(--line); background:#f5f7f4; color:var(--ink); padding:8px 10px; }
+  #panel button:hover,#panel .fileBtn:hover { background:#e9efe9; }
+  #panel button.primary,#panel .modeToggle button.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  #panel .modeToggle { gap:4px; }
+  #panel .status:empty,#fileStatus:empty { display:none; }
+  #panel .hint { color:#8d6254; }
+  .tong-label { background:var(--accent); border-radius:5px; box-shadow:0 2px 4px #21392c20; }
+  #pwGate { background:#edf1ec; }
+  #pwGate .pwCard { box-shadow:0 10px 40px #21392c12; border:1px solid var(--line); }
+  #pwGate button { background:var(--accent); }
+  @media(max-width:640px) {
+    .appbar { height:56px; padding:0 16px; }
+    .brand { font-size:16px; } .brand span { display:none; }
+    .appbar nav a { padding:8px 12px; }
+    #gisMap,#loading { top:56px; }
+    #topbar { top:68px; left:12px; width:190px; padding:12px; }
+    #topbar h1 { display:none; }
+    #legendPanel { top:auto; bottom:16px; left:12px; right:auto; width:170px; max-height:28dvh; }
+    #panel { top:auto; bottom:0; left:0; width:100%; height:42dvh; border-radius:16px 16px 0 0; padding:16px 20px; }
+    body.editor #gisMap { bottom:42dvh; }
+  }
+
+
+  #topbar { width:320px; max-width:320px; }
+  .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+  .address-row { display:flex; gap:6px; margin-bottom:12px; }
+  #addressInput { min-width:0; width:100%; padding:12px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px; }
+  .address-row button { flex-shrink:0; border:0; background:var(--accent); color:#fff; border-radius:7px; padding:0 14px; cursor:pointer; }
+  #addressResult { font-size:13px; font-weight:600; line-height:1.6; margin:0 0 12px; color:var(--accent); }
+  #addressResult:empty { display:none; }
+  #addressChoices { max-height:180px; overflow:auto; }
+  #addressChoices button { display:block; width:100%; padding:10px; text-align:left; background:#f5f7f4; border:0; border-radius:5px; margin-bottom:6px; cursor:pointer; }
+  @media(max-width:640px) { #topbar { width:calc(100% - 24px); max-width:none; } }
 </style>
 </head>
-<body>
+<body class="viewer">
+<header class="appbar"><a class="brand" href="/">용산 통·반 지도<span>YONGSAN MAP</span></a><nav aria-label="화면 선택"><a href="/" aria-current="page">지도</a><a href="/editor">편집</a></nav></header>
 
-<div id="pwGate">
-  <div class="pwCard">
-    <h2>접속 확인</h2>
-    <p>비밀번호를 입력해주세요.</p>
-    <input type="password" id="pwInput" autocomplete="off" placeholder="비밀번호">
-    <button id="pwSubmitBtn">확인</button>
-    <div class="pwError" id="pwError"></div>
-  </div>
-</div>
-
-<div id="gisMap"></div>
+<div id="gisMap" role="region" aria-label="용산구 통·반 지도"></div>
 <div id="loading">지도를 준비하는 중입니다…</div>
 
 <div id="topbar">
-  <h1>한남동 스마트 통·반 지도</h1>
-  <div class="sub">통 경계 편집기(hannam_tong_editor.html)에서 만든 JSON을 불러오면 그 경계로 통이 그려집니다.</div>
-  <label style="font-size:11px;color:#555;display:block;margin-bottom:4px;">동 선택 (기본 외곽선)</label>
+  <h1>내 통·반 찾기</h1>
+  <form id="addressForm" role="search">
+    <label class="sr-only" for="addressInput">지번 또는 도로명주소</label>
+    <div class="address-row"><input id="addressInput" type="search" placeholder="지번 또는 도로명주소" required autocomplete="street-address"><button type="submit">검색</button></div>
+  </form>
+  <div id="addressChoices"></div>
+  <div id="addressResult" role="status" aria-live="polite"></div>
+
   <select id="dongBoundarySelect" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid #ccc;font-size:12px;margin-bottom:8px;"></select>
-  <button class="fileBtn" id="refreshFromGithubBtn" type="button">최신 데이터 새로고침</button>
-  <label class="fileBtn" for="tongFileInput">통 경계 JSON 불러오기</label>
+  <button class="fileBtn" id="refreshFromGithubBtn" type="button">새로고침</button>
   <input type="file" id="tongFileInput" accept=".json">
-  <label class="fileBtn" for="boundaryFileInput">외곽선 JSON 불러오기</label>
   <input type="file" id="boundaryFileInput" accept=".json">
   <div id="fileStatus"></div>
 </div>
@@ -174,6 +233,7 @@ function refreshFromGithub(dongName) {
       setStatus('<span class="warn">깃허브에서 ' + dongName + ' 데이터를 찾지 못했습니다</span> (아직 저장 전이거나 설정을 확인해주세요 · 마지막으로 불러온 데이터로 표시 중)');
       return;
     }
+    if (document.getElementById('dongBoundarySelect').value !== dongName) return;
     TONG_DATA = data;
     try { localStorage.setItem(LS_TONG_KEY, JSON.stringify(data)); } catch (e) {}
     renderAll(TONG_DATA, BOUNDARY_DATA);
@@ -409,6 +469,7 @@ function renderTongFeatures(tongFeatures) {
 }
 
 function renderAll(tongData, boundaryData) {
+  displayedTongData = tongData;
   clearOverlays();
   renderBoundary(boundaryRingFromData(boundaryData));
   renderTongFeatures(tongFeaturesFromData(tongData));
@@ -486,7 +547,7 @@ document.getElementById('dongBoundarySelect').addEventListener('change', functio
   // 동을 바꾸면 이전 동의 통 경계는 더는 맞지 않으므로 비워둔다. (필요하면 그 동의 통 경계 JSON을 따로 불러오세요.)
   // 단, 기본 동(한남동)으로 돌아왔을 때는 파일에 내장된 원본 데이터를 그대로 복원한다 —
   // 안 그러면 깃허브 연동이 꺼져있거나 응답이 실패했을 때 한남동 데이터가 영영 빈 채로 남는다.
-  TONG_DATA = (name === DEFAULT_DONG_NAME) ? EMBEDDED_DEFAULT_TONG_DATA : emptyTongData(name);
+  TONG_DATA = SAVED_TONG_DATA[name] || (name === DEFAULT_DONG_NAME ? EMBEDDED_DEFAULT_TONG_DATA : emptyTongData(name));
   try { localStorage.removeItem(LS_TONG_KEY); } catch (e) {}
   renderAll(TONG_DATA, BOUNDARY_DATA);
   setStatus('<span class="ok">' + name + ' 기본 외곽선 표시 중</span> (깃허브에서 확인 중…)');
@@ -513,7 +574,7 @@ function init() {
     if (rawB) storedBoundary = JSON.parse(rawB);
   } catch (e) {}
 
-  var tongData = storedTong || TONG_DATA;
+  var tongData = storedTong || SAVED_TONG_DATA[DEFAULT_DONG_NAME] || TONG_DATA;
   var boundaryData = storedBoundary || BOUNDARY_DATA;
   renderAll(tongData, boundaryData);
 
@@ -524,61 +585,13 @@ function init() {
   refreshFromGithub(DEFAULT_DONG_NAME);
 }
 
-/* ---------- 접속 비밀번호 확인 ----------
-   이 파일은 그냥 정적 HTML이라 파일 자체 안에는 진짜 보안을 걸 수 없다(소스 보면 다 보임).
-   그래도 회사 사람이 아닌 사람이 우연히 링크를 열어봤을 때 최소한의 문턱은 되도록,
-   비밀번호를 평문으로 남기지 않고 SHA-256 해시로만 비교한다. */
-var PW_HASH = 'e12ac2180c9f6fe9db6add3f54fcef4dad2ebcdfb2cbeac0d0e80ccba6ccae24';
-var PW_SESSION_KEY = 'hannamTongAuthOk_v1';
-
-function sha256Hex(str) {
-  var data = new TextEncoder().encode(str);
-  return crypto.subtle.digest('SHA-256', data).then(function (buf) {
-    return Array.prototype.map.call(new Uint8Array(buf), function (b) {
-      return ('0' + b.toString(16)).slice(-2);
-    }).join('');
-  });
-}
-
-function bootApp() {
-  document.getElementById('pwGate').style.display = 'none';
-  if (window.kakao && kakao.maps) {
-    kakao.maps.load(init);
-  } else {
-    document.getElementById('loading').textContent = '카카오맵 SDK를 불러오지 못했습니다. 앱키 및 플랫폼 도메인 등록을 확인해주세요.';
-  }
-}
-
-function tryPassword() {
-  var val = document.getElementById('pwInput').value;
-  sha256Hex(val).then(function (hash) {
-    if (hash === PW_HASH) {
-      try { sessionStorage.setItem(PW_SESSION_KEY, '1'); } catch (e) {}
-      bootApp();
-    } else {
-      document.getElementById('pwError').textContent = '비밀번호가 올바르지 않습니다.';
-      document.getElementById('pwInput').value = '';
-      document.getElementById('pwInput').focus();
-    }
-  });
-}
-
-document.getElementById('pwSubmitBtn').addEventListener('click', tryPassword);
-document.getElementById('pwInput').addEventListener('keydown', function (ev) {
-  if (ev.key === 'Enter') { ev.preventDefault(); tryPassword(); }
-});
-
 window.addEventListener('load', function () {
-  var alreadyAuthed = false;
-  try { alreadyAuthed = sessionStorage.getItem(PW_SESSION_KEY) === '1'; } catch (e) {}
-  if (alreadyAuthed) {
-    bootApp();
-  } else {
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('pwInput').focus();
-  }
+  if (window.kakao && kakao.maps) kakao.maps.load(init);
+  else document.getElementById('loading').textContent = '지도를 불러오지 못했습니다. 새로고침해주세요.';
 });
 //]]>
 </script>
+<script>var SAVED_TONG_DATA = /* __SAVED_TONG_DATA__ */;</script>
+<script src="/src/address-search.js"></script>
 </body>
 </html>

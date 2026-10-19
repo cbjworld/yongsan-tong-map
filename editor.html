@@ -89,39 +89,94 @@
   }
   #pwGate button:hover { background: #3d5aa0; }
   #pwGate .pwError { color: #d33; font-size: 12px; margin-top: 8px; min-height: 14px; }
+
+  :root { --ink:#233d37; --accent:#256653; --line:#e1e7e3; }
+  html,body { font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif; color:var(--ink); overflow:hidden; background:#edf1ec; }
+  button,input,select { font:inherit; }
+  button,a,label.fileBtn,select { -webkit-tap-highlight-color:transparent; transition:background .18s,box-shadow .18s; }
+  button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,label.fileBtn:focus-within { outline:3px solid #93bfa9; outline-offset:3px; }
+  button:active,.fileBtn:active { transform:translateY(1px); }
+  .appbar { position:absolute; inset:0 0 auto; height:64px; z-index:30; display:flex; align-items:center; justify-content:space-between; padding:0 28px; background:#fff; border-bottom:1px solid var(--line); }
+  .brand { color:var(--ink); text-decoration:none; font-size:18px; font-weight:750; letter-spacing:-.8px; }
+  .brand span { color:#789087; font-weight:450; margin-left:10px; font-size:12px; letter-spacing:0; }
+  .appbar nav { display:flex; gap:6px; }
+  .appbar nav a { color:#6b7e76; padding:9px 16px; text-decoration:none; border-radius:7px; font-size:13px; font-weight:600; }
+  .appbar nav a:hover { background:#f1f5f2; }
+  .appbar nav a[aria-current=page] { background:#eaf2ed; color:var(--accent); }
+  #gisMap { top:64px; }
+  #loading { top:64px; color:var(--accent); font-size:13px; }
+  #topbar,#legendPanel,#panel { background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 4px 24px #21392c12; }
+  #topbar { top:84px; left:20px; padding:16px; width:260px; }
+  #topbar h1 { font-size:14px; margin-bottom:12px; letter-spacing:-.4px; }
+  #topbar select { margin:0!important; min-height:42px; background:#f6f8f5; border-color:var(--line)!important; font-size:14px!important; }
+  #topbar #refreshFromGithubBtn { margin:10px 0 0; width:100%; background:#f0f5f1; color:var(--accent); }
+  #fileStatus { margin-top:8px; font-size:11px; color:#708078; }
+  #legendPanel { top:84px; right:20px; width:210px; max-height:calc(100dvh - 110px); padding:16px 0 8px; }
+  #legendPanel h2 { padding:0 16px 14px; }
+  #legendList li { min-height:36px; padding:8px 16px; }
+  #legendList li:hover { background:#f1f6f2; }
+  #panel { top:84px; left:20px; bottom:20px; width:320px; padding:20px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:#c9d7ce transparent; }
+  #panel h1 { font-size:18px; margin:0 0 20px; letter-spacing:-.6px; }
+  #panel h2 { margin:24px 0 12px; padding-top:18px; font-size:13px; border-color:var(--line); }
+  #panel label.fieldLabel { display:block; margin:12px 0 6px; font-size:11px; color:#78877f; }
+  #panel input:not([type=file]),#panel select { min-height:38px; border:1px solid var(--line)!important; background:#fafbf9; border-radius:6px; padding:8px 10px; max-width:100%; }
+  #panel>input { width:100%; }
+  #panel button,#panel .fileBtn { min-height:34px; border-color:var(--line); background:#f5f7f4; color:var(--ink); padding:8px 10px; }
+  #panel button:hover,#panel .fileBtn:hover { background:#e9efe9; }
+  #panel button.primary,#panel .modeToggle button.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  #panel .modeToggle { gap:4px; }
+  #panel .status:empty,#fileStatus:empty { display:none; }
+  #panel .hint { color:#8d6254; }
+  .tong-label { background:var(--accent); border-radius:5px; box-shadow:0 2px 4px #21392c20; }
+  #pwGate { background:#edf1ec; }
+  #pwGate .pwCard { box-shadow:0 10px 40px #21392c12; border:1px solid var(--line); }
+  #pwGate button { background:var(--accent); }
+  @media(max-width:640px) {
+    .appbar { height:56px; padding:0 16px; }
+    .brand { font-size:16px; } .brand span { display:none; }
+    .appbar nav a { padding:8px 12px; }
+    #gisMap,#loading { top:56px; }
+    #topbar { top:68px; left:12px; width:190px; padding:12px; }
+    #topbar h1 { display:none; }
+    #legendPanel { top:auto; bottom:16px; left:12px; right:auto; width:170px; max-height:28dvh; }
+    #panel { top:auto; bottom:0; left:0; width:100%; height:42dvh; border-radius:16px 16px 0 0; padding:16px 20px; }
+    body.editor #gisMap { bottom:42dvh; }
+  }
+
 </style>
 </head>
-<body>
+<body class="editor">
+<header class="appbar"><a class="brand" href="/">용산 통·반 지도<span>YONGSAN MAP</span></a><nav aria-label="화면 선택"><a href="/">지도</a><a href="/editor" aria-current="page">편집</a></nav></header>
 
 <div id="pwGate">
   <div class="pwCard">
     <h2>접속 확인</h2>
-    <p>비밀번호를 입력해주세요.</p>
+
     <input type="password" id="pwInput" autocomplete="off" placeholder="비밀번호">
     <button id="pwSubmitBtn">확인</button>
     <div class="pwError" id="pwError"></div>
   </div>
 </div>
 
-<div id="gisMap"></div>
+<div id="gisMap" role="region" aria-label="용산구 통·반 지도"></div>
 <div id="loading">지도를 준비하는 중입니다…</div>
 
 <div id="panel">
   <h1>통·반 경계 편집기</h1>
-  <div class="hint">한남동뿐 아니라 앞으로 다른 동에도 재사용할 수 있는 도구예요. 동 이름을 입력하고, 지도를 클릭해 경계를 그린 뒤 JSON으로 내보내면, 그 JSON을 지도 뷰어(hannam_tong_map.html)에 불러와 바로 표시할 수 있어요.</div>
 
-  <label class="fieldLabel">동 선택 (기본 외곽선 자동 불러오기)</label>
+
+  <label class="fieldLabel">행정동</label>
   <div class="row"><select id="dongSelect" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid #ccc;"></select></div>
-  <label class="fieldLabel">동 이름 (내보내기 파일명)</label>
+  <label class="fieldLabel">동 이름</label>
   <div class="row"><input type="text" id="dongNameInput" value="한남동"></div>
-  <div class="hint">동을 바꾸면 그 동의 기본 외곽선이 자동으로 불러와지고, 지금까지 그린 통 경계는 초기화돼요. 이어서 편집하려면 아래에서 그 동의 통 경계 JSON을 불러오세요.</div>
 
-  <h2>기존 JSON 불러오기 (이어서 편집)</h2>
+
+  <h2>불러오기</h2>
   <div class="row">
     <button id="ghLoadBtn" class="primary">깃허브에서 불러오기</button>
-    <label class="fileBtn" for="loadTongInput">파일에서: 통 경계 JSON</label>
+    <label class="fileBtn" for="loadTongInput">통 경계 파일</label>
     <input type="file" id="loadTongInput" accept=".json">
-    <label class="fileBtn" for="loadBoundaryInput">파일에서: 외곽선 JSON</label>
+    <label class="fileBtn" for="loadBoundaryInput">외곽선 파일</label>
     <input type="file" id="loadBoundaryInput" accept=".json">
   </div>
   <div id="loadStatus" class="status"></div>
@@ -147,7 +202,7 @@
     <button id="drawFinishBtn" class="primary" disabled>완성</button>
     <button id="drawCancelBtn" disabled>취소</button>
   </div>
-  <div class="hint">"그리기 시작" 후 지도를 클릭해 꼭짓점을 3개 이상 찍고 "완성"을 누르세요. 같은 통 번호로 다시 그리면 그 통에 조각(섬)이 추가됩니다. 반 경계는 먼저 그 반이 속할 통을 그려둔 다음, 통 번호와 반 번호를 골라 그리면 그 통 안쪽으로 자동으로 잘리고 같은 통 안 다른 반과 겹치면 자동 정리돼요. 동 외곽선은 다시 그리면 이전 외곽선을 완전히 대체합니다.</div>
+
   <div id="drawStatus" class="status"></div>
 
   <h2>지번 편입 / 이동</h2>
@@ -169,18 +224,10 @@
     <div class="row">
       <button id="assignParcelBtn" class="primary">이 지번을 편입/이동</button>
     </div>
-    <div class="hint">지번을 입력(엔터로도 찾기 가능)하거나 "지도에서 지번 선택"을 누른 뒤 지도의 필지를 클릭하면, 그 필지 경계가 주황색으로 표시되고 지금 어느 통·반에 속해 있는지 알려줘요. 편입할 통 번호(없으면 새로 만들어짐)와, 필요하면 반 번호까지 입력하고 "편입/이동"을 누르면 그 지번이 있던 자리에서 빠지고 새 통·반으로 옮겨져요. 경계를 일일이 그리기 힘들 때 지번 단위로 빠르게 채워 넣는 용도예요.</div>
+
     <div id="assignStatus" class="status"></div>
 
-    <div class="hint" style="margin-top:14px; border-top:1px solid #e5e5e5; padding-top:10px;">
-      반대로 "이 동의 모든 지번이 지금 몇 통 몇 반인지" 한 번에 뽑아낼 수도 있어요. 지금
-      그려진 통/반 경계를 기준으로, 이 동의 지번마다 그 안(정확히는 필지 중심점)이 어느
-      통·반 폴리곤에 들어가는지 하나씩 확인해서 표로 만듭니다. 아직 어느 통에도 안 들어간
-      지번은 통/반 칸이 빈 채로 나옵니다. 지목이 도로(도)·구거(구)인 지번은 목록에서 자동
-      제외되고, 지번 칸에는 지목 글자를 뺀 번지만 나옵니다. 도로명주소는 각 지번 중심점을
-      카카오 좌표→주소 변환으로 조회해서 같이 넣는데, 지번 수가 많으면 시간이 좀 걸릴 수
-      있고 도로명주소가 없는 지번(도로명이 없는 곳 등)은 빈 칸으로 나옵니다.
-    </div>
+
     <div class="row">
       <button id="exportParcelTongBanBtn" style="flex:1;">지번별 통/반 목록 CSV로 내보내기</button>
     </div>
@@ -200,7 +247,7 @@
   <div class="row">
     <button id="deletePointBtn" disabled>선택한 점 삭제</button>
   </div>
-  <div class="hint">편집을 시작하면 꼭짓점이 빨간 점(선택하면 노란 점)으로, 각 선분의 중간에는 파란 점이 표시돼요. 빨간 점은 드래그하면 위치가 바뀌고, 클릭하면 선택되어 "선택한 점 삭제" 버튼이나 키보드 Delete(또는 Backspace) 키로 지울 수 있어요. 파란 점을 클릭하면 그 자리에 새 점이 추가돼요. 통 경계를 편집하면 동 외곽선을 벗어난 부분은 자동으로 잘리고 다른 통과 겹치면 자동 정리돼요. 반 경계를 편집하면 같은 방식으로 그 통 범위와 같은 통 안 다른 반에 맞춰 정리돼요. 대상 목록에서 들여쓰기된 항목이 반이에요.</div>
+
   <div id="editStatus" class="status"></div>
 
   <h2>현재 통 목록 <span id="shapeCount" style="color:#999;font-weight:400;"></span></h2>
@@ -212,8 +259,8 @@
     <button id="exportBoundaryBtn">외곽선 JSON</button>
   </div>
 
-  <h2>깃허브에 자동 저장</h2>
-  <p class="hint" style="margin:0 0 8px;">여기서 저장하면 지도(뷰어)를 새로고침할 때 자동으로 최신 내용이 뜹니다.</p>
+  <h2>저장소 설정</h2>
+
   <div class="row">
     <button id="ghSaveBtn" class="primary">깃허브에 저장</button>
   </div>
@@ -221,22 +268,14 @@
   <details style="margin-top:8px;">
     <summary style="cursor:pointer; color:#888; font-size:11px;">고급 설정 (평소엔 건드릴 필요 없음)</summary>
     <div style="margin-top:8px;">
-      <p style="color:#888; font-size:12px; margin:0 0 8px;">
-        실제 깃허브 쓰기 권한(토큰)은 이 파일 안에는 전혀 들어있지 않고, 별도의 작은 서버
-        (저장 대행 프록시)에만 비밀로 보관돼 있어요. 이 페이지는 위에서 입력한 접속
-        비밀번호만 그 서버로 보내서 "나 맞으니 대신 저장해줘"라고 요청하고, 서버가 비밀번호를
-        확인한 뒤 자기 토큰으로 깃허브에 저장합니다. 그래서 이 파일을 누가 열어봐도 진짜
-        토큰은 절대 보이지 않아요. 아래 값들은 build.py 에서 미리 채워둔 것이라 어느
-        컴퓨터에서 열어도 비밀번호만 입력하면 바로 저장이 되고, 필요하면 이 브라우저에서만
-        다르게 바꿔 쓸 수도 있어요.
-      </p>
-      <label class="fieldLabel">저장소 소유자 (예: myuser)</label>
+
+      <label class="fieldLabel">소유자</label>
       <input type="text" id="ghOwner" placeholder="github 사용자명 또는 조직명">
       <label class="fieldLabel">저장소 이름</label>
       <input type="text" id="ghRepo" placeholder="예: yongsan-tong-map">
       <label class="fieldLabel">브랜치</label>
       <input type="text" id="ghBranch" placeholder="main" value="main">
-      <label class="fieldLabel">저장 경로 ({dong} 은 동 이름으로 치환됨)</label>
+      <label class="fieldLabel">저장 경로</label>
       <input type="text" id="ghPath" placeholder="data/{dong}_tong.json" value="data/{dong}_tong.json">
       <label class="fieldLabel">저장 대행 프록시 주소 (Cloudflare Worker)</label>
       <input type="text" id="ghWorkerUrl" placeholder="https://xxxx.workers.dev">
@@ -1755,7 +1794,7 @@ function loadFromGithub() {
   var s = readGithubSettingsFromForm();
   var el = document.getElementById('loadStatus');
   if (!s.owner || !s.repo) {
-    el.className = 'status warn'; el.textContent = '먼저 "깃허브에 자동 저장" 항목에 저장소 정보를 입력해주세요.';
+    el.className = 'status warn'; el.textContent = '먼저 "저장소 설정" 항목에 저장소 정보를 입력해주세요.';
     return;
   }
   var dongName = document.getElementById('dongNameInput').value.trim() || '한남동';
