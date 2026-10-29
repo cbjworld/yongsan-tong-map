@@ -75374,10 +75374,12 @@ function refreshFromGithub(dongName) {
   setStatus(dongName + ' 최신 데이터를 확인하는 중…', 'ok');
 
   fetchWithTimeout(url, REMOTE_TIMEOUT_MS).then(function (res) {
+    if (res.status === 404) return null;   // 저장된 지도가 없는 동: 있는 그대로(빈 지도) 보여준다
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return res.json();
   }).then(function (data) {
     if (myToken !== refreshToken || state.dong !== dongName) return;   // 이미 다른 동으로 넘어갔다
+    if (data === null) { setStatus(''); return; }
     var problem = validateTongData(data);
     if (problem) {
       setStatus('최신 데이터 형식이 올바르지 않아 반영하지 않았습니다 (' + problem + ')', 'warn');
