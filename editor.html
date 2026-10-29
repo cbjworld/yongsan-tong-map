@@ -184,9 +184,7 @@
     <button id="editStartBtn">편집 시작</button>
     <button id="editStopBtn" disabled>편집 종료</button>
   </div>
-  <div class="row">
-    <button id="deletePointBtn" disabled>선택한 점 삭제</button>
-  </div>
+  <button id="deletePointBtn" disabled hidden></button>
   <div id="editStatus" class="status"></div>
 
   <h2>현재 통 목록 <span id="shapeCount" style="color:#999;font-weight:400;"></span></h2>
@@ -1182,7 +1180,7 @@ function startVertexEdit() {
   document.getElementById('editTargetSelect').disabled = true;
   document.getElementById('deletePointBtn').disabled = true;
   renderVertexMarkers();
-  setEditStatus('빨간 점은 드래그(이동)·클릭(선택), 파란 점은 클릭(추가)할 수 있어요.', 'ok');
+  setEditStatus('빨간 점은 드래그(이동)·클릭(선택), 파란 점은 클릭(추가), 선택한 점은 Delete 키로 삭제할 수 있어요.', 'ok');
 }
 
 function stopVertexEdit() {
