@@ -180,9 +180,8 @@
   <div id="legendPanel">
     <h2>통 목록 <span id="legendCount" style="color:#999;font-weight:400;"></span></h2>
     <div id="legendTools">
-      <input type="search" id="legendFilter" placeholder="통·반·담당자 검색" aria-label="통 반 담당자 검색">
+      <input type="search" id="legendFilter" placeholder="통·반장 검색" aria-label="통·반장 검색">
       <label class="toggleRow"><input type="checkbox" id="banToggle" checked> 반 경계 표시</label>
-      <div class="toggleRow" style="color:#888;">체크박스로 특정 통/반만 골라볼 수 있어요</div>
       <button id="legendClearFilterBtn" type="button">선택 해제(전체 보기)</button>
     </div>
     <ul id="legendList"></ul>
@@ -75372,7 +75371,7 @@ function refreshFromGithub(dongName) {
   var url = remoteTongUrl(dongName);
   if (!url) return;
   var myToken = ++refreshToken;   // 동을 빠르게 연속 변경했을 때 늦게 온 응답이 덮어쓰지 않게
-  setStatus('깃허브에서 ' + dongName + ' 최신 데이터를 확인하는 중…', 'ok');
+  setStatus(dongName + ' 최신 데이터를 확인하는 중…', 'ok');
 
   fetchWithTimeout(url, REMOTE_TIMEOUT_MS).then(function (res) {
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -75381,7 +75380,7 @@ function refreshFromGithub(dongName) {
     if (myToken !== refreshToken || state.dong !== dongName) return;   // 이미 다른 동으로 넘어갔다
     var problem = validateTongData(data);
     if (problem) {
-      setStatus('깃허브 데이터 형식이 올바르지 않아 반영하지 않았습니다 (' + problem + ')', 'warn');
+      setStatus('최신 데이터 형식이 올바르지 않아 반영하지 않았습니다 (' + problem + ')', 'warn');
       return;
     }
     var sig = signatureOf(data);
@@ -75391,12 +75390,12 @@ function refreshFromGithub(dongName) {
       state.signature = sig;
       renderAll();
     }
-    setStatus('깃허브 최신 데이터 반영됨 · ' + new Date().toLocaleTimeString() +
+    setStatus('최신 데이터 반영됨 · ' + new Date().toLocaleTimeString() +
       (saveWarn ? ' / ' + saveWarn : ''), saveWarn ? 'warn' : 'ok');
   }).catch(function (err) {
     if (myToken !== refreshToken) return;
     var reason = err && err.name === 'AbortError' ? '응답 시간 초과' : (err && err.message) || '알 수 없는 오류';
-    setStatus('깃허브에서 ' + dongName + ' 데이터를 가져오지 못했습니다 (' + reason +
+    setStatus(dongName + ' 최신 데이터를 가져오지 못했습니다 (' + reason +
       ') · 마지막으로 확인된 데이터로 표시 중', 'warn');
   });
 }
@@ -75424,8 +75423,8 @@ function applyDong(dongName) {
   state.signature = signatureOf(state.tongData);
 
   renderAll();
-  setStatus(cached ? dongName + ' 최근 데이터로 표시 중 (깃허브 확인 중…)'
-                   : dongName + ' 기본 데이터로 표시 중 (깃허브 확인 중…)', 'ok');
+  setStatus(cached ? dongName + ' 최근 데이터로 표시 중 (최신 데이터 확인 중…)'
+                   : dongName + ' 기본 데이터로 표시 중 (최신 데이터 확인 중…)', 'ok');
   refreshFromGithub(dongName);
 }
 
