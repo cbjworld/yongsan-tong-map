@@ -110,10 +110,8 @@
   <h1>통·반 경계 편집기</h1>
 
   <label class="fieldLabel">동 선택</label>
-  <div class="row"><select id="dongSelect" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid #ccc;"></select></div>
-
-  <h2>불러오기</h2>
   <div class="row">
+    <select id="dongSelect" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid #ccc;"></select>
     <button id="ghLoadBtn" class="primary">불러오기</button>
   </div>
   <div id="loadStatus" class="status"></div>
@@ -191,9 +189,7 @@
     <button id="ghSaveBtn" class="primary">저장</button>
   </div>
   <div id="githubStatus" class="status"></div>
-  <details style="margin-top:8px;">
-    <summary style="cursor:pointer; color:#888; font-size:11px;">고급 설정</summary>
-    <div style="margin-top:8px;">
+  <div id="saveSettings" style="display:none;">
       <label class="fieldLabel">저장소 소유자 (예: myuser)</label>
       <input type="text" id="ghOwner" placeholder="사용자명 또는 조직명">
       <label class="fieldLabel">저장소 이름</label>
@@ -204,8 +200,7 @@
       <input type="text" id="ghPath" placeholder="data/{dong}_tong.json" value="data/{dong}_tong.json">
       <label class="fieldLabel">저장 대행 프록시 주소 (Cloudflare Worker)</label>
       <input type="text" id="ghWorkerUrl" placeholder="https://xxxx.workers.dev">
-    </div>
-  </details>
+  </div>
 </div>
 
 <script type="text/javascript">
@@ -1149,10 +1144,11 @@ function refreshDrawPreview() {
     map: oMap, path: path, strokeWeight: 3, strokeColor: '#e91e63',
     strokeOpacity: 0.95, strokeStyle: 'shortdash', zIndex: 15
   });
-  drawPoints.forEach(function (p) {
+  drawPoints.forEach(function (p, idx) {
+    var size = (idx === 0 && drawPoints.length >= 3) ? 14 : 8;
     var dot = new kakao.maps.CustomOverlay({
       position: new kakao.maps.LatLng(p[1], p[0]),
-      content: '<div style="width:8px;height:8px;border-radius:50%;background:#e91e63;border:2px solid #fff;transform:translate(-50%,-50%);"></div>',
+      content: '<div style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:#e91e63;border:2px solid #fff;transform:translate(-50%,-50%);"></div>',
       zIndex: 16
     });
     dot.setMap(oMap);
@@ -1160,8 +1156,20 @@ function refreshDrawPreview() {
   });
 }
 
+// 첫 점에서 이 픽셀 거리 안을 클릭하면 경계를 닫고 바로 완성한다.
+var CLOSE_SNAP_PX = 15;
+function isNearFirstDrawPoint(latLng) {
+  if (drawPoints.length < 3 || !oMap) return false;
+  var proj = oMap.getProjection();
+  var a = proj.containerPointFromCoords(new kakao.maps.LatLng(drawPoints[0][1], drawPoints[0][0]));
+  var b = proj.containerPointFromCoords(latLng);
+  var dx = a.x - b.x, dy = a.y - b.y;
+  return dx * dx + dy * dy <= CLOSE_SNAP_PX * CLOSE_SNAP_PX;
+}
+
 function mapClickWhileDrawing(mouseEvent) {
   if (!isDrawing) return;
+  if (isNearFirstDrawPoint(mouseEvent.latLng)) { finishDrawing(); return; }
   drawPoints.push([mouseEvent.latLng.getLng(), mouseEvent.latLng.getLat()]);
   refreshDrawPreview();
   document.getElementById('drawUndoBtn').disabled = drawPoints.length === 0;
@@ -1194,7 +1202,7 @@ function startDrawing() {
   document.getElementById('drawUndoBtn').disabled = true;
   document.getElementById('drawFinishBtn').disabled = true;
   document.getElementById('drawCancelBtn').disabled = false;
-  setDrawStatus('지도를 클릭해 꼭짓점을 찍어주세요 (최소 3개).');
+  setDrawStatus('지도를 클릭해 꼭짓점을 찍어주세요. 첫 점을 다시 누르면 완성됩니다.');
 }
 
 function undoDrawPoint() {
@@ -1560,10 +1568,7 @@ var GH_SETTINGS_KEY = 'hannamTongGithubSettings_v1';
 
 function loadGithubSettings() {
   var s = null;
-  try {
-    var raw = localStorage.getItem(GH_SETTINGS_KEY);
-    if (raw) s = JSON.parse(raw);
-  } catch (e) {}
+  try { localStorage.removeItem(GH_SETTINGS_KEY); } catch (e) {}
   // 이 브라우저에서 예전에 직접 입력해둔 값이 있으면 그걸 우선 쓰고,
   // 없으면 build.py 가 파일에 내장해둔 기본값을 쓴다.
   document.getElementById('ghOwner').value = (s && s.owner) || GH_DEFAULT_OWNER || '';
@@ -1581,7 +1586,6 @@ function readGithubSettingsFromForm() {
     path: document.getElementById('ghPath').value.trim() || 'data/{dong}_tong.json',
     workerUrl: document.getElementById('ghWorkerUrl').value.trim()
   };
-  try { localStorage.setItem(GH_SETTINGS_KEY, JSON.stringify(s)); } catch (e) {}
   return s;
 }
 
@@ -1643,7 +1647,7 @@ function saveToGithub() {
       return j;
     });
   }).then(function () {
-    setGithubStatus('저장했습니다 (' + path + '). 뷰어를 새로고침하면 반영됩니다.', 'ok');
+    setGithubStatus(dongName + ' 지도를 저장했습니다. 뷰어를 새로고침하면 반영됩니다.', 'ok');
   }).catch(function (err) {
     setGithubStatus('저장 실패: ' + err.message, 'warn');
   });
@@ -1688,7 +1692,8 @@ document.getElementById('dongSelect').addEventListener('change', function () {
   if (isDrawing) cancelDrawing();
   renderAll();
   populateParcelSection();
-  setDrawStatus(name + ' 기본 외곽선을 불러왔습니다. (통 경계는 초기화됨 · 이어서 편집하려면 "불러오기"를 누르세요)', 'ok');
+  setDrawStatus('');
+  setLoadStatusText('');
 });
 
 function loadJsonFile(file, cb) {
@@ -1699,6 +1704,8 @@ function loadJsonFile(file, cb) {
 }
 
 // 파일에서 불러오든 깃허브에서 불러오든 결과 데이터 모양은 같으므로 적용 로직을 하나로 모은다.
+function setLoadStatusText(t) { var el = document.getElementById('loadStatus'); if (el) { el.className = 'status'; el.textContent = t; } }
+
 function applyTongJsonData(data, sourceLabel) {
   var el = document.getElementById('loadStatus');
   var body = data.body || [];
@@ -1722,7 +1729,7 @@ function applyTongJsonData(data, sourceLabel) {
   renderAll();
   populateParcelSection();
   el.className = 'status ok';
-  el.textContent = '통 경계 ' + Object.keys(loaded).length + '개 불러옴 · ' + sourceLabel;
+  el.textContent = ((data.head && data.head.DONG_NAME) || document.getElementById('dongSelect').value) + ' 통 경계 ' + Object.keys(loaded).length + '개를 불러왔습니다.';
 }
 
 
@@ -1738,7 +1745,7 @@ function loadFromGithub() {
   var s = readGithubSettingsFromForm();
   var el = document.getElementById('loadStatus');
   if (!s.owner || !s.repo) {
-    el.className = 'status warn'; el.textContent = '저장 위치 설정이 비어 있습니다. "저장" 아래 고급 설정을 확인해주세요.';
+    el.className = 'status warn'; el.textContent = '저장 위치 설정이 비어 있습니다.';
     return;
   }
   var dongName = (document.getElementById('dongSelect').value || '한남동');
@@ -1756,7 +1763,13 @@ function loadFromGithub() {
   el.className = 'status ok'; el.textContent = '불러오는 중…';
 
   fetch(rawUrl, { cache: 'no-store' }).then(function (res) {
-    if (res.status === 404) throw new Error('저장소에 ' + path + ' 파일이 아직 없습니다. (경로 "' + path + '", 브랜치 "' + branch + '"가 맞는지, 저장소가 공개로 전환됐는지 확인해주세요)');
+    if (res.status === 404) {
+      var last = dongName.charCodeAt(dongName.length - 1);
+      var josa = (last >= 0xAC00 && last <= 0xD7A3 && (last - 0xAC00) % 28 !== 0) ? '은' : '는';
+      var nf = new Error(dongName + josa + ' 저장된 지도가 없습니다.');
+      nf.notFound = true;
+      throw nf;
+    }
     return res.text().then(function (raw) {
       if (!res.ok) {
         throw new Error('조회 실패 (HTTP ' + res.status + ')');
@@ -1773,6 +1786,7 @@ function loadFromGithub() {
   }).then(function (data) {
     applyTongJsonData(data, path);
   }).catch(function (err) {
+    if (err && err.notFound) { el.className = 'status warn'; el.textContent = err.message; return; }
     var msg = err.message;
     if (/Failed to fetch/i.test(msg)) {
       msg += ' — 네트워크 요청 자체가 브라우저에서 막혔습니다. 저장소가 정말 공개(Public)인지, 인터넷 연결이 되는지 확인해주세요. 이 편집기 파일을 컴퓨터에 저장해서 직접 열었다면(file://로 시작하는 주소), 그 방식으로는 막힐 수 있으니 인터넷 주소로 접속해서 열어보세요.';
