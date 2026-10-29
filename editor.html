@@ -45,7 +45,9 @@
   #shapeList li { display:flex; align-items:center; gap:6px; padding:4px 0; border-bottom:1px solid #f2f2f2; }
   #shapeList li .swatch { width:10px; height:10px; border-radius:3px; flex:0 0 auto; }
   #shapeList li .act { margin-left:auto; color:#004c80; cursor:pointer; font-size:11px; }
-  #shapeList li .del { color:#c0392b; cursor:pointer; font-size:11px; }
+  #shapeList li .del { margin-left:auto; color:#c0392b; cursor:pointer; font-size:11px; }
+  #shapeList li { cursor:pointer; }
+  #shapeList li:hover { background:#f4f8fb; }
   .modeToggle { display:flex; gap:6px; margin-top:6px; }
   .modeToggle button { flex:1; }
   #panel .modeToggle button.active, #panel .modeToggle button.active:hover { background:#004c80; color:#fff; border-color:#004c80; }
@@ -818,14 +820,6 @@ function refreshShapeList() {
     chiefInput.placeholder = '통장 이름';
     chiefInput.style.cssText = 'width:70px;font-size:11px;padding:3px 5px;border-radius:5px;border:1px solid #ccc;';
     chiefInput.addEventListener('change', function () { shape.chief = chiefInput.value.trim(); });
-    var goTo = document.createElement('span');
-    goTo.className = 'act';
-    goTo.textContent = '이동';
-    goTo.addEventListener('click', function () {
-      var c = ringCenter(shape.rings[0]);
-      oMap.setCenter(new kakao.maps.LatLng(c[1], c[0]));
-      oMap.setLevel(4);
-    });
     var del = document.createElement('span');
     del.className = 'del';
     del.textContent = '삭제';
@@ -833,7 +827,12 @@ function refreshShapeList() {
       delete tongShapes[tongNum];
       renderAll();
     });
-    li.appendChild(swatch); li.appendChild(label); li.appendChild(chiefInput); li.appendChild(goTo); li.appendChild(del);
+    li.appendChild(swatch); li.appendChild(label); li.appendChild(chiefInput); li.appendChild(del);
+    // 줄을 누르면 그 통으로 이동 (이름 입력칸·삭제 버튼을 누른 경우는 제외)
+    li.addEventListener('click', function (ev) {
+      if (ev.target === chiefInput || ev.target === del) return;
+      panToRings(shape.rings);
+    });
     ul.appendChild(li);
 
     if (shape.banShapes) {
@@ -852,14 +851,6 @@ function refreshShapeList() {
         bChiefInput.placeholder = '반장 이름';
         bChiefInput.style.cssText = 'width:64px;font-size:11px;padding:3px 5px;border-radius:5px;border:1px solid #ccc;';
         bChiefInput.addEventListener('change', function () { banShape.chiefName = bChiefInput.value.trim(); });
-        var bGoTo = document.createElement('span');
-        bGoTo.className = 'act';
-        bGoTo.textContent = '이동';
-        bGoTo.addEventListener('click', function () {
-          var c = ringCenter(banShape.rings[0]);
-          oMap.setCenter(new kakao.maps.LatLng(c[1], c[0]));
-          oMap.setLevel(3);
-        });
         var bDel = document.createElement('span');
         bDel.className = 'del';
         bDel.textContent = '삭제';
@@ -867,7 +858,11 @@ function refreshShapeList() {
           delete shape.banShapes[banNum];
           renderAll();
         });
-        bli.appendChild(bSwatch); bli.appendChild(bLabel); bli.appendChild(bChiefInput); bli.appendChild(bGoTo); bli.appendChild(bDel);
+        bli.appendChild(bSwatch); bli.appendChild(bLabel); bli.appendChild(bChiefInput); bli.appendChild(bDel);
+        bli.addEventListener('click', function (ev) {
+          if (ev.target === bChiefInput || ev.target === bDel) return;
+          panToRings(banShape.rings);
+        });
         ul.appendChild(bli);
       });
     }
@@ -1940,6 +1935,33 @@ document.getElementById('assignTongInput').addEventListener('keydown', function 
 });
 document.getElementById('assignBanInput').addEventListener('keydown', function (ev) {
   if (ev.key === 'Enter') { ev.preventDefault(); assignSelectedParcel(); }
+});
+
+// 점 위치 수정 대상을 고르면 그 통/반이 화면에 다 보이도록 지도를 옮긴다 (왼쪽 메뉴에 안 가리게 여백).
+function ringsForEditTargetValue(val) {
+  if (!val) return null;
+  var parts = val.split(':');
+  var shape = tongShapes[parseInt(parts[1], 10)];
+  if (!shape) return null;
+  if (parts[0] === 'tong') return shape.rings;
+  if (parts[0] === 'ban') {
+    var bs = shape.banShapes && shape.banShapes[parseInt(parts[2], 10)];
+    return bs ? bs.rings : null;
+  }
+  return null;
+}
+
+function panToRings(rings) {
+  if (!oMap || !rings || !rings.length) return;
+  var bounds = new kakao.maps.LatLngBounds();
+  rings.forEach(function (ring) {
+    ring.forEach(function (pt) { bounds.extend(new kakao.maps.LatLng(pt[1], pt[0])); });
+  });
+  oMap.setBounds(bounds, 60, 60, 60, 340);
+}
+
+document.getElementById('editTargetSelect').addEventListener('change', function () {
+  panToRings(ringsForEditTargetValue(this.value));
 });
 
 // Ctrl+Z 되돌리기, Ctrl+Y 또는 Ctrl+Shift+Z 다시 실행 (맥은 Cmd). 입력칸에서는 글자 되돌리기로 둔다.
