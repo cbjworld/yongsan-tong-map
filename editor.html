@@ -69,6 +69,17 @@
     position:absolute; inset:0; background:rgba(255,255,255,.85); z-index:50;
     display:flex; align-items:center; justify-content:center; font-size:14px; color:#004c80;
   }
+  #busyOverlay {
+    position:absolute; inset:0; z-index:60; background:rgba(255,255,255,.55);
+    display:none; align-items:center; justify-content:center; flex-direction:column; gap:10px;
+    font-size:13px; color:#004c80; cursor:progress;
+  }
+  #busyOverlay.on { display:flex; }
+  #busyOverlay .spinner {
+    width:36px; height:36px; border-radius:50%;
+    border:4px solid #cfe0ee; border-top-color:#004c80; animation:busySpin .8s linear infinite;
+  }
+  @keyframes busySpin { to { transform:rotate(360deg); } }
   #pwGate {
     position: fixed; inset: 0; z-index: 9999; background: #1b2430;
     display: flex; align-items: center; justify-content: center;
@@ -104,6 +115,7 @@
 </div>
 
 <div id="gisMap"></div>
+<div id="busyOverlay"><div class="spinner"></div><div id="busyText">경계를 정리하는 중…</div></div>
 <div id="loading">지도를 준비하는 중입니다…</div>
 
 <div id="panel">
@@ -1077,7 +1089,23 @@ function deleteSelectedPoint() {
   var lastIsClose = r.length > 1 && r[0][0] === r[r.length - 1][0] && r[0][1] === r[r.length - 1][1];
   var uniqueCount = lastIsClose ? r.length - 1 : r.length;
   if (uniqueCount <= 3) {
-    setEditStatus('점이 3개 미만이 되면 도형을 만들 수 없어 더는 삭제할 수 없습니다.', 'warn');
+    // 점이 3개 미만이 되면 도형이 안 되므로 그 조각을 통째로 지운다.
+    // 조각이 하나도 안 남으면 편집 대상(통/반/동 외곽선) 자체를 지운다.
+    rings.splice(selectedVertex.partIndex, 1);
+    selectedVertex = null;
+    document.getElementById('deletePointBtn').disabled = true;
+    if (rings.length) { afterVertexChange(); return; }
+    var t = editingTarget;
+    if (t.kind === 'boundary') {
+      boundaryRing = null;
+    } else if (t.kind === 'tong') {
+      delete tongShapes[t.tongNum];
+    } else if (t.kind === 'ban') {
+      var owner = tongShapes[t.tongNum];
+      if (owner && owner.banShapes) delete owner.banShapes[t.banNum];
+    }
+    stopVertexEdit();
+    renderAll();
     return;
   }
   var idx = selectedVertex.vertexIndex;
@@ -1168,7 +1196,7 @@ function isNearFirstDrawPoint(latLng) {
 }
 
 function mapClickWhileDrawing(mouseEvent) {
-  if (!isDrawing) return;
+  if (!isDrawing || isBusy) return;
   if (isNearFirstDrawPoint(mouseEvent.latLng)) { finishDrawing(); return; }
   drawPoints.push([mouseEvent.latLng.getLng(), mouseEvent.latLng.getLat()]);
   refreshDrawPreview();
@@ -1227,7 +1255,36 @@ function cancelDrawing() {
   setDrawStatus('');
 }
 
+var isBusy = false;
+function showBusy(text) {
+  isBusy = true;
+  document.getElementById('busyText').textContent = text || '처리 중…';
+  document.getElementById('busyOverlay').classList.add('on');
+}
+function hideBusy() {
+  isBusy = false;
+  document.getElementById('busyOverlay').classList.remove('on');
+}
+// 로딩 표시가 실제로 화면에 그려진 다음에 무거운 작업을 시작한다 (requestAnimationFrame 두 번 = 다음 프레임 이후)
+function runWithBusy(text, work) {
+  showBusy(text);
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      try { work(); } finally { hideBusy(); }
+    });
+  });
+}
+
 function finishDrawing() {
+  if (isBusy) return;
+  if (drawPoints.length < 3) {
+    setDrawStatus('점을 3개 이상 찍어주세요.', 'warn');
+    return;
+  }
+  runWithBusy('경계를 정리하는 중…', finishDrawingNow);
+}
+
+function finishDrawingNow() {
   if (drawPoints.length < 3) {
     setDrawStatus('점을 3개 이상 찍어주세요.', 'warn');
     return;
