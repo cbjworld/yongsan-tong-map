@@ -5,103 +5,129 @@
 <meta http-equiv="X-UA-Compatible" content="IE=Edge">
 <meta name="viewport" content="width=device-width, user-scalable=yes, initial-scale=1.0, maximum-scale=3.0, minimum-scale=1.0">
 <title>통·반 경계 편집기</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <style>
   * { box-sizing: border-box; }
-  html, body { margin:0; padding:0; height:100%; overflow:hidden; font-family:"Malgun Gothic","Apple SD Gothic Neo","NanumGothic",sans-serif; }
+  html, body { margin:0; padding:0; height:100%; overflow:hidden;
+    font-family:Pretendard,"Pretendard Variable",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    -webkit-font-smoothing:antialiased; color:#1b1f24; }
   #gisMap { position:absolute; top:0; left:0; right:0; bottom:0; }
 
-  #panel {
-    position:absolute; top:12px; left:12px; z-index:20;
-    background:#fff; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.18);
-    padding:14px 16px; width:300px; font-size:12px; color:#333;
-    max-height:calc(100vh - 24px); overflow-y:auto; overscroll-behavior:contain;
-  }
-  #panel h1 { font-size:15px; margin:0 0 8px; color:#222; }
-  #panel h2 { font-size:12.5px; margin:14px 0 4px; color:#222; border-top:1px solid #eee; padding-top:10px; }
-  #panel .hint { color:#888; font-size:10.5px; line-height:1.5; margin-top:4px; }
-  #panel .row { display:flex; gap:6px; margin-top:6px; align-items:center; flex-wrap:wrap; }
-  #panel label.fieldLabel { font-size:11px; color:#555; width:100%; }
-  #panel input[type=text], #panel input[type=number] {
-    font-size:12px; padding:6px 8px; border-radius:6px; border:1px solid #ccc; flex:1; min-width:0;
-  }
-  #panel button {
-    font-size:11.5px; padding:7px 10px; border-radius:6px; border:1px solid #ccc;
-    background:#f7f7f7; cursor:pointer;
-  }
-  #panel button:hover { background:#eee; }
-  #panel button.primary { background:#004c80; color:#fff; border-color:#004c80; }
-  #panel button.primary:hover { background:#003a63; }
-  #panel button:disabled { opacity:.5; cursor:default; }
-  #panel .fileBtn {
-    display:inline-block; background:#f7f7f7; border:1px solid #ccc; border-radius:6px;
-    padding:7px 10px; cursor:pointer; font-size:11.5px;
-  }
-  #panel .fileBtn:hover { background:#eee; }
-  input[type=file] { display:none; }
-  .status { margin-top:6px; font-size:11px; }
-  .status.ok { color:#0a7a2f; }
-  .status.warn { color:#c0392b; }
-  #shapeList { list-style:none; margin:6px 0 0; padding:0; max-height:160px; overflow-y:auto; }
-  #shapeList li { display:flex; align-items:center; gap:6px; padding:4px 0; border-bottom:1px solid #f2f2f2; }
-  #shapeList li .swatch { width:10px; height:10px; border-radius:3px; flex:0 0 auto; }
-  #shapeList li .act { margin-left:auto; color:#004c80; cursor:pointer; font-size:11px; }
-  #shapeList li .del { margin-left:auto; color:#c0392b; cursor:pointer; font-size:11px; }
-  #shapeList li { cursor:pointer; }
-  #shapeList li:hover { background:#f4f8fb; }
-  .modeToggle { display:flex; gap:6px; margin-top:6px; }
-  .modeToggle button { flex:1; }
-  #panel .modeToggle button.active, #panel .modeToggle button.active:hover { background:#004c80; color:#fff; border-color:#004c80; }
-  #panel button.pickActive { background:#c0392b; color:#fff; border-color:#c0392b; }
+  :root { --accent:#0b6bcb; --accent-hover:#0958a8; --soft:#f3f5f8; --soft-hover:#e8ecf1; --line:#eef0f3; --muted:#8a93a0; }
 
+  #panel {
+    position:absolute; top:14px; left:14px; z-index:20;
+    background:#fff; border-radius:16px;
+    box-shadow:0 8px 28px rgba(20,30,50,.14), 0 1px 3px rgba(20,30,50,.08);
+    padding:16px; width:304px; font-size:12.5px; color:#1b1f24;
+    max-height:calc(100vh - 28px); overflow-y:auto; overscroll-behavior:contain;
+  }
+  #panel::-webkit-scrollbar { width:8px; }
+  #panel::-webkit-scrollbar-thumb { background:#d9dee5; border-radius:8px; border:2px solid #fff; }
+  #panel h1 { font-size:16px; font-weight:700; letter-spacing:-.02em; margin:0 0 12px; color:#111; }
+  #panel h2 { font-size:11.5px; font-weight:600; color:var(--muted); margin:18px 0 6px; padding-top:14px; border-top:1px solid var(--line); letter-spacing:-.01em; }
+  #panel .hint { color:var(--muted); font-size:11px; line-height:1.5; margin-top:4px; }
+  #panel .row { display:flex; gap:6px; margin-top:7px; align-items:center; flex-wrap:wrap; }
+  #panel label.fieldLabel { font-size:11.5px; font-weight:600; color:var(--muted); width:100%; display:block; margin-bottom:2px; }
+  #panel input[type=text], #panel input[type=number], #panel select {
+    font:inherit; font-size:12.5px; height:36px; padding:0 12px; border-radius:10px;
+    border:1px solid transparent; background:var(--soft); color:#1b1f24; flex:1; min-width:0; outline:none;
+    transition:border-color .15s, background .15s, box-shadow .15s;
+  }
+  #panel select { font-weight:600; cursor:pointer; appearance:none; -webkit-appearance:none; padding-right:30px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a93a0' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 12px center; }
+  #panel input:focus, #panel select:focus { background-color:#fff; border-color:var(--accent); box-shadow:0 0 0 3px rgba(11,107,203,.15); }
+  #panel input::placeholder { color:#a3abb6; }
+  #panel button {
+    font:inherit; font-size:12px; font-weight:600; height:34px; padding:0 12px; border-radius:10px;
+    border:none; background:var(--soft); color:#333b45; cursor:pointer; transition:background .15s, color .15s, box-shadow .15s;
+  }
+  #panel button:hover { background:var(--soft-hover); }
+  #panel button.primary { background:var(--accent); color:#fff; }
+  #panel button.primary:hover { background:var(--accent-hover); }
+  #panel button:disabled, #panel button:disabled:hover { opacity:.4; cursor:default; background:var(--soft); color:#333b45; }
+  #panel button.primary:disabled, #panel button.primary:disabled:hover { background:var(--accent); color:#fff; }
+  input[type=file] { display:none; }
+  .status { margin-top:6px; font-size:11.5px; line-height:1.5; }
+  .status:empty { display:none; }
+  .status.ok { color:#11845b; }
+  .status.warn { color:#d0383e; }
+
+  /* 통·반 모드: 세그먼트 버튼 */
+  .modeToggle { display:flex; gap:0; margin-top:6px; background:var(--soft); border-radius:10px; padding:3px; }
+  #panel .modeToggle button { flex:1; height:30px; background:transparent; color:#5b6470; border-radius:8px; }
+  #panel .modeToggle button:hover { color:#1b1f24; background:transparent; }
+  #panel .modeToggle button.active, #panel .modeToggle button.active:hover { background:#fff; color:var(--accent); box-shadow:0 1px 3px rgba(20,30,50,.14); }
+  #panel button.pickActive, #panel button.pickActive:hover { background:#d0383e; color:#fff; }
+
+  /* 통 목록 */
+  #shapeList { list-style:none; margin:6px -6px 0; padding:0; }
+  #shapeList li { display:flex; align-items:center; gap:8px; padding:6px; border-radius:8px; cursor:pointer; transition:background .12s; }
+  #shapeList li:hover { background:#f4f7fb; }
+  #shapeList li.banItem { padding-left:22px; }
+  #shapeList li .del { margin-left:auto; color:#c4cad2; cursor:pointer; font-size:11.5px; font-weight:600; padding:2px 4px; border-radius:6px; }
+  #shapeList li:hover .del { color:#d0383e; }
+  #shapeList li input[type=text] { height:28px; font-size:11.5px; padding:0 8px; border-radius:8px; max-width:78px; }
+  .badge { min-width:24px; height:24px; padding:0 6px; border-radius:12px; color:#fff; font-size:11.5px; font-weight:700;
+    display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; font-variant-numeric:tabular-nums; }
+  .badge.ban { min-width:20px; height:20px; border-radius:10px; font-size:10.5px; background:#fff; border:2px solid; padding:0 4px; }
+  .itemName { font-weight:600; white-space:nowrap; min-width:30px; }
+
+  /* 저장 줄: 메뉴 맨 아래에 붙어 있게 */
+  #saveBar { position:sticky; bottom:-16px; margin:16px -16px -16px; padding:12px 16px 16px; background:rgba(255,255,255,.96);
+    border-top:1px solid var(--line); backdrop-filter:blur(6px); z-index:2; }
+  #saveBar .row { margin-top:0; }
+
+  /* 지도 위 이름표 */
   .tong-label {
-    font-family:"NanumGothic","Malgun Gothic","sans-serif";
-    text-align:center; color:#fff; font-size:11px; font-weight:700;
-    background-color:rgba(0,76,128,.92); border-radius:8px; padding:2px 6px;
-    white-space:nowrap; transform:translate(-50%,-50%); box-shadow:0 1px 3px rgba(0,0,0,.3);
+    font-family:Pretendard,-apple-system,"Malgun Gothic",sans-serif;
+    text-align:center; color:#fff; font-size:11.5px; font-weight:700; letter-spacing:-.01em;
+    border-radius:12px; padding:3px 9px; border:2px solid #fff;
+    white-space:nowrap; transform:translate(-50%,-50%); box-shadow:0 2px 6px rgba(20,30,50,.28);
   }
   .ban-label {
-    font-family:"NanumGothic","Malgun Gothic","sans-serif";
-    text-align:center; color:#333; font-size:10px; font-weight:700;
-    background-color:rgba(255,255,255,.9); border:1px solid #999; border-radius:6px; padding:1px 5px;
-    white-space:nowrap; transform:translate(-50%,-50%); box-shadow:0 1px 2px rgba(0,0,0,.2);
+    font-family:Pretendard,-apple-system,"Malgun Gothic",sans-serif;
+    text-align:center; font-size:10.5px; font-weight:700;
+    background:#fff; border:1.5px solid #5b6470; border-radius:10px; padding:1px 7px;
+    white-space:nowrap; transform:translate(-50%,-50%); box-shadow:0 1px 4px rgba(20,30,50,.2);
   }
-  #shapeList li.banItem { padding-left:16px; }
-  #shapeList li.banItem .swatch { border:1px dashed #666; background:transparent !important; }
   #loading {
     position:absolute; inset:0; background:rgba(255,255,255,.85); z-index:50;
-    display:flex; align-items:center; justify-content:center; font-size:14px; color:#004c80;
+    display:flex; align-items:center; justify-content:center; font-size:14px; color:#0b6bcb;
   }
   #busyOverlay {
     position:absolute; inset:0; z-index:60; background:rgba(255,255,255,.55);
     display:none; align-items:center; justify-content:center; flex-direction:column; gap:10px;
-    font-size:13px; color:#004c80; cursor:progress;
+    font-size:13px; font-weight:600; color:#0b6bcb; cursor:progress;
   }
   #busyOverlay.on { display:flex; }
   #busyOverlay .spinner {
     width:36px; height:36px; border-radius:50%;
-    border:4px solid #cfe0ee; border-top-color:#004c80; animation:busySpin .8s linear infinite;
+    border:4px solid #dbe7f5; border-top-color:#0b6bcb; animation:busySpin .8s linear infinite;
   }
   @keyframes busySpin { to { transform:rotate(360deg); } }
   #pwGate {
-    position: fixed; inset: 0; z-index: 9999; background: #1b2430;
+    position: fixed; inset: 0; z-index: 9999; background: linear-gradient(160deg,#eef2f7,#dfe6ef);
     display: flex; align-items: center; justify-content: center;
   }
   #pwGate .pwCard {
-    background: #fff; border-radius: 12px; padding: 32px 28px; width: 280px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3); text-align: center;
+    background: #fff; border-radius: 20px; padding: 36px 30px 30px; width: 300px;
+    box-shadow: 0 16px 40px rgba(20,30,50,.14), 0 1px 3px rgba(20,30,50,.08); text-align: center;
   }
-  #pwGate h2 { margin: 0 0 6px; font-size: 17px; }
-  #pwGate p { margin: 0 0 16px; color: #777; font-size: 13px; }
+  #pwGate h2 { margin: 0 0 6px; font-size: 18px; font-weight: 700; letter-spacing:-.02em; }
+  #pwGate p { margin: 0 0 18px; color: #8a93a0; font-size: 13px; }
   #pwGate input {
-    width: 100%; box-sizing: border-box; padding: 9px 10px; border-radius: 6px;
-    border: 1px solid #ccc; font-size: 14px; margin-bottom: 10px;
+    width: 100%; box-sizing: border-box; height: 44px; padding: 0 14px; border-radius: 12px;
+    border: 1px solid transparent; background:#f3f5f8; font: inherit; font-size: 14px; margin-bottom: 10px; outline:none;
   }
+  #pwGate input:focus { background:#fff; border-color:#0b6bcb; box-shadow:0 0 0 3px rgba(11,107,203,.15); }
   #pwGate button {
-    width: 100%; padding: 9px 10px; border-radius: 6px; border: none;
-    background: #4b6ebe; color: #fff; font-size: 14px; cursor: pointer;
+    width: 100%; height: 44px; border-radius: 12px; border: none;
+    background: #0b6bcb; color: #fff; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
   }
-  #pwGate button:hover { background: #3d5aa0; }
-  #pwGate .pwError { color: #d33; font-size: 12px; margin-top: 8px; min-height: 14px; }
+  #pwGate button:hover { background: #0958a8; }
+  #pwGate .pwError { color: #d0383e; font-size: 12px; margin-top: 8px; min-height: 14px; }
 </style>
 </head>
 <body>
@@ -125,7 +151,7 @@
 
   <label class="fieldLabel">동 선택</label>
   <div class="row">
-    <select id="dongSelect" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid #ccc;"></select>
+    <select id="dongSelect" style="flex:1;"></select>
   </div>
   <div id="loadStatus" class="status"></div>
 
@@ -138,7 +164,7 @@
     <input type="number" id="tongNumInput" placeholder="통 번호" min="1" style="max-width:90px;">
   </div>
   <div class="row" id="banFields" style="display:none;">
-    <select id="banParentTongSelect" style="max-width:110px;padding:6px 8px;border-radius:6px;border:1px solid #ccc;">
+    <select id="banParentTongSelect" style="max-width:110px;">
       <option value="">통 선택</option>
     </select>
     <input type="number" id="banNumInput" placeholder="반 번호" min="1" style="max-width:90px;">
@@ -164,8 +190,8 @@
     </div>
     <div id="parcelFindStatus" class="status"></div>
     <div class="row">
-      <input type="number" id="assignTongInput" placeholder="편입할 통 번호" min="1" style="max-width:110px;">
-      <input type="number" id="assignBanInput" placeholder="반 번호 (선택)" min="1" style="max-width:110px;">
+      <input type="number" id="assignTongInput" placeholder="편입할 통 번호" min="1">
+      <input type="number" id="assignBanInput" placeholder="반 번호 (선택)" min="1">
     </div>
     <div class="row">
       <button id="assignParcelBtn" class="primary">이 지번을 편입/이동</button>
@@ -176,7 +202,7 @@
 
   <h2>점 위치 수정</h2>
   <div class="row">
-    <select id="editTargetSelect" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid #ccc;">
+    <select id="editTargetSelect" style="flex:1;">
       <option value="">대상을 선택하세요</option>
     </select>
   </div>
@@ -187,16 +213,17 @@
   <button id="deletePointBtn" disabled hidden></button>
   <div id="editStatus" class="status"></div>
 
-  <h2>현재 통 목록 <span id="shapeCount" style="color:#999;font-weight:400;"></span></h2>
+  <h2>현재 통 목록 <span id="shapeCount" style="font-weight:500;"></span></h2>
   <ul id="shapeList"></ul>
 
-  <h2>저장</h2>
-  <div class="row">
-    <button id="ghSaveBtn" class="primary">저장</button>
-    <button id="exportParcelTongBanBtn">목록 파일로 저장하기</button>
+  <div id="saveBar">
+    <div class="row">
+      <button id="ghSaveBtn" class="primary" style="flex:1;">저장</button>
+      <button id="exportParcelTongBanBtn">목록 파일로 저장하기</button>
+    </div>
+    <div id="githubStatus" class="status"></div>
+    <div id="exportParcelTongBanStatus" class="status"></div>
   </div>
-  <div id="githubStatus" class="status"></div>
-  <div id="exportParcelTongBanStatus" class="status"></div>
   <div id="saveSettings" style="display:none;">
       <label class="fieldLabel">저장소 소유자 (예: myuser)</label>
       <input type="text" id="ghOwner" placeholder="사용자명 또는 조직명">
@@ -256,12 +283,19 @@ var vertexMarkerImgSelected = null;
 var midpointMarkerImg = null;
 
 var colorCache = {};
+var TONG_PALETTE = [
+  { stroke: '#1f5fd6', fill: '#3d7bfd' }, { stroke: '#0e8a4f', fill: '#20b26b' }, { stroke: '#d4630a', fill: '#fd8a2c' },
+  { stroke: '#c2255c', fill: '#e64980' }, { stroke: '#6741d9', fill: '#845ef7' }, { stroke: '#0b8a9a', fill: '#15aabf' },
+  { stroke: '#a8780a', fill: '#f0b429' }, { stroke: '#364fc7', fill: '#5c7cfa' }, { stroke: '#2b8a3e', fill: '#69db7c' },
+  { stroke: '#c92a2a', fill: '#ff6b6b' }, { stroke: '#862e9c', fill: '#cc5de8' }, { stroke: '#5c6b00', fill: '#a9b81c' }
+];
+// 통 번호마다 지하철 노선처럼 또렷한 색을 돌려 쓴다 (편집기와 뷰어가 같은 표를 쓴다)
 function tongColor(t) {
   if (colorCache[t]) return colorCache[t];
-  var hue = (t * 47) % 360;
-  var c = { stroke: 'hsl(' + hue + ', 62%, 34%)', fill: 'hsl(' + hue + ', 70%, 55%)' };
-  colorCache[t] = c;
-  return c;
+  var n = parseInt(t, 10);
+  if (isNaN(n) || n < 1) n = 1;
+  colorCache[t] = TONG_PALETTE[(n - 1) % TONG_PALETTE.length];
+  return colorCache[t];
 }
 
 /* ---------- 경계 자르기 / 겹침 정리 (turf.js) ----------
@@ -755,14 +789,14 @@ function renderAll() {
     });
     var polygon = new kakao.maps.Polygon({
       map: oMap, path: flatPaths, strokeWeight: 2, strokeColor: colors.stroke,
-      strokeOpacity: 0.9, fillColor: colors.fill, fillOpacity: 0.35, zIndex: 3
+      strokeOpacity: 0.95, fillColor: colors.fill, fillOpacity: 0.28, zIndex: 3
     });
     tongPolygons.push(polygon);
 
     var center = ringCenter(shape.rings[0]);
     var label = new kakao.maps.CustomOverlay({
       position: new kakao.maps.LatLng(center[1], center[0]),
-      content: '<div class="tong-label">' + tongNum + '통</div>',
+      content: '<div class="tong-label" style="background:' + colors.stroke + '">' + tongNum + '통</div>',
       zIndex: 5
     });
     label.setMap(oMap);
@@ -784,7 +818,7 @@ function renderAll() {
         var banCenter = ringCenter(banShape.rings[0]);
         var banLabel = new kakao.maps.CustomOverlay({
           position: new kakao.maps.LatLng(banCenter[1], banCenter[0]),
-          content: '<div class="ban-label">' + tongNum + '-' + banNum + '반</div>',
+          content: '<div class="ban-label" style="border-color:' + colors.stroke + ';color:' + colors.stroke + '">' + tongNum + '-' + banNum + '반</div>',
           zIndex: 6
         });
         banLabel.setMap(oMap);
@@ -808,15 +842,16 @@ function refreshShapeList() {
     var shape = tongShapes[tongNum];
     var li = document.createElement('li');
     var swatch = document.createElement('span');
-    swatch.className = 'swatch';
-    swatch.style.background = tongColor(tongNum).fill;
+    swatch.className = 'badge';
+    swatch.style.background = tongColor(tongNum).stroke;
+    swatch.textContent = tongNum;
     var label = document.createElement('span');
+    label.className = 'itemName';
     label.textContent = tongNum + '통';
     var chiefInput = document.createElement('input');
     chiefInput.type = 'text';
     chiefInput.value = shape.chief || '';
     chiefInput.placeholder = '통장 이름';
-    chiefInput.style.cssText = 'width:70px;font-size:11px;padding:3px 5px;border-radius:5px;border:1px solid #ccc;';
     chiefInput.addEventListener('change', function () { shape.chief = chiefInput.value.trim(); });
     var del = document.createElement('span');
     del.className = 'del';
@@ -840,14 +875,17 @@ function refreshShapeList() {
         var bli = document.createElement('li');
         bli.className = 'banItem';
         var bSwatch = document.createElement('span');
-        bSwatch.className = 'swatch';
+        bSwatch.className = 'badge ban';
+        bSwatch.style.borderColor = tongColor(tongNum).stroke;
+        bSwatch.style.color = tongColor(tongNum).stroke;
+        bSwatch.textContent = banNum;
         var bLabel = document.createElement('span');
-        bLabel.textContent = tongNum + '통 ' + banNum + '반';
+        bLabel.className = 'itemName';
+        bLabel.textContent = banNum + '반';
         var bChiefInput = document.createElement('input');
         bChiefInput.type = 'text';
         bChiefInput.value = banShape.chiefName || '';
         bChiefInput.placeholder = '반장 이름';
-        bChiefInput.style.cssText = 'width:64px;font-size:11px;padding:3px 5px;border-radius:5px;border:1px solid #ccc;';
         bChiefInput.addEventListener('change', function () { banShape.chiefName = bChiefInput.value.trim(); });
         var bDel = document.createElement('span');
         bDel.className = 'del';
