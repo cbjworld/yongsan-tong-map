@@ -163,7 +163,6 @@
 
   <div id="topbar">
     <h1 id="dongTitle">한남동 통·반 지도</h1>
-    <div class="sub">통 경계 편집기(hannam_tong_editor.html)에서 만든 JSON을 불러오면 그 경계로 통이 그려집니다.</div>
     <div id="addrSearchBox">
       <label class="field" for="addrSearchInput">주소로 통/반 찾기 (도로명·지번 모두 가능)</label>
       <div class="row">
@@ -172,13 +171,9 @@
       </div>
       <div id="addrSearchResult" class="status" role="status" aria-live="polite"></div>
     </div>
-    <label class="field" for="dongBoundarySelect">동 선택 (기본 외곽선)</label>
+    <label class="field" for="dongBoundarySelect">동 선택</label>
     <select id="dongBoundarySelect"></select>
     <button class="fileBtn" id="refreshFromGithubBtn" type="button">최신 데이터 새로고침</button>
-    <label class="fileBtn" for="tongFileInput">통 경계 JSON 불러오기</label>
-    <input type="file" id="tongFileInput" accept=".json,application/json">
-    <label class="fileBtn" for="boundaryFileInput">외곽선 JSON 불러오기</label>
-    <input type="file" id="boundaryFileInput" accept=".json,application/json">
     <div id="fileStatus" role="status" aria-live="polite"></div>
   </div>
 
@@ -75630,8 +75625,6 @@ byId('dongBoundarySelect').addEventListener('change', function () {
 byId('refreshFromGithubBtn').addEventListener('click', function () {
   refreshFromGithub(state.dong);
 });
-byId('tongFileInput').addEventListener('change', function () { handleUpload(this, 'tong'); });
-byId('boundaryFileInput').addEventListener('change', function () { handleUpload(this, 'boundary'); });
 
 byId('legendFilter').addEventListener('input', function () {
   state.filter = this.value;
