@@ -4,139 +4,159 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, minimum-scale=1.0">
 <title>한남동 스마트 통·반 지도</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <style>
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
+  :root { --accent:#0b6bcb; --accent-hover:#0958a8; --soft:#f3f5f8; --soft-hover:#e8ecf1; --line:#eef0f3; --muted:#8a93a0; --ink:#1b1f24; }
   html, body {
-    margin:0; padding:0; height:100%;
-    font-family:"Malgun Gothic","Apple SD Gothic Neo","NanumGothic",sans-serif;
+    margin:0; padding:0; height:100%; color:var(--ink); -webkit-font-smoothing:antialiased;
+    font-family:Pretendard,"Pretendard Variable",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   }
   #gisMap { position:absolute; inset:0; }
 
+  .card {
+    background:#fff; border-radius:16px;
+    box-shadow:0 8px 28px rgba(20,30,50,.14), 0 1px 3px rgba(20,30,50,.08);
+  }
   #topbar {
-    position:absolute; top:12px; left:12px; z-index:20;
-    background:#fff; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.18);
-    padding:12px 16px; width:300px; max-width:calc(100vw - 24px);
+    position:absolute; top:14px; left:14px; z-index:20;
+    background:#fff; border-radius:16px; box-shadow:0 8px 28px rgba(20,30,50,.14), 0 1px 3px rgba(20,30,50,.08);
+    padding:16px; width:304px; max-width:calc(100vw - 28px);
   }
-  #topbar h1 { font-size:16px; margin:0 0 6px; color:#222; }
-  #topbar .sub { font-size:11px; color:#777; margin-bottom:10px; line-height:1.5; }
-  #topbar label.field { font-size:11px; color:#555; display:block; margin-bottom:4px; }
+  #topbar h1 { font-size:17px; font-weight:700; letter-spacing:-.02em; margin:0 0 14px; color:#111; }
+  #topbar label.field { font-size:11.5px; font-weight:600; color:var(--muted); display:block; margin-bottom:6px; }
+  #dongBoundarySelect, #addrSearchInput, #legendFilter {
+    font:inherit; font-size:13px; height:38px; padding:0 12px; border-radius:10px;
+    border:1px solid transparent; background:var(--soft); color:var(--ink); outline:none;
+    transition:border-color .15s, background .15s, box-shadow .15s;
+  }
   #dongBoundarySelect {
-    width:100%; padding:6px 8px; border-radius:6px; border:1px solid #ccc;
-    font-size:12px; margin-bottom:8px;
+    width:100%; margin-bottom:10px; font-weight:600; cursor:pointer; appearance:none; -webkit-appearance:none; padding-right:30px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a93a0' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 12px center;
   }
-  #addrSearchBox { margin-bottom:10px; }
-  #addrSearchBox .row { display:flex; gap:4px; }
-  #addrSearchInput {
-    flex:1; min-width:0; padding:6px 8px; border-radius:6px; border:1px solid #ccc; font-size:12px;
+  #dongBoundarySelect:focus, #addrSearchInput:focus, #legendFilter:focus {
+    background-color:#fff; border-color:var(--accent); box-shadow:0 0 0 3px rgba(11,107,203,.15);
   }
+  #addrSearchInput::placeholder, #legendFilter::placeholder { color:#a3abb6; }
+  #addrSearchBox { margin-bottom:14px; }
+  #addrSearchBox .row { display:flex; gap:6px; }
+  #addrSearchInput { flex:1; min-width:0; }
   #addrSearchBtn {
-    flex:0 0 auto; padding:6px 10px; border-radius:6px; border:1px solid #4b6ebe;
-    background:#4b6ebe; color:#fff; font-size:12px; cursor:pointer;
+    flex:0 0 auto; height:38px; padding:0 16px; border-radius:10px; border:none;
+    background:var(--accent); color:#fff; font:inherit; font-size:13px; font-weight:700; cursor:pointer;
   }
-  #addrSearchBtn:hover { background:#3d5aa0; }
-  #addrSearchResult.status { font-size:11.5px; margin-top:5px; line-height:1.5; word-break:break-all; }
-  #addrSearchResult.status.ok { color:#0a7a2f; font-weight:600; }
-  #addrSearchResult.status.warn { color:#c0392b; font-weight:600; }
-  #addrSearchInput:focus-visible, #addrSearchBtn:focus-visible { outline:2px solid #4b6ebe; outline-offset:1px; }
+  #addrSearchBtn:hover { background:var(--accent-hover); }
+  #addrSearchResult.status { font-size:12px; margin-top:8px; line-height:1.5; word-break:break-all; }
+  #addrSearchResult.status:empty { display:none; }
+  #addrSearchResult.status.ok { color:#11845b; font-weight:600; }
+  #addrSearchResult.status.warn { color:#d0383e; font-weight:600; }
   .fileBtn {
-    display:inline-block; background:#004c80; color:#fff; font-size:12px;
-    padding:7px 12px; border-radius:6px; cursor:pointer; border:none;
-    margin-right:6px; margin-bottom:6px;
+    display:inline-flex; align-items:center; justify-content:center; height:34px; padding:0 14px;
+    background:var(--soft); color:#333b45; font:inherit; font-size:12px; font-weight:600;
+    border-radius:10px; cursor:pointer; border:none;
   }
-  .fileBtn:hover { background:#003a63; }
-  .fileBtn:focus-visible, #legendList li:focus-visible, #legendFilter:focus-visible,
-  #dongBoundarySelect:focus-visible { outline:2px solid #4b6ebe; outline-offset:1px; }
+  .fileBtn:hover { background:var(--soft-hover); }
+  .fileBtn:focus-visible, #legendList li:focus-visible, #addrSearchBtn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
   input[type=file] { display:none; }
-  #fileStatus { font-size:11px; color:#333; margin-top:4px; line-height:1.5; word-break:break-all; }
-  #fileStatus.ok { color:#0a7a2f; font-weight:600; }
-  #fileStatus.warn { color:#c0392b; font-weight:600; }
+  #fileStatus { font-size:11.5px; color:var(--muted); margin-top:8px; line-height:1.5; word-break:break-all; }
+  #fileStatus:empty { display:none; }
+  #fileStatus.ok { color:#11845b; font-weight:600; }
+  #fileStatus.warn { color:#d0383e; font-weight:600; }
 
   #legendPanel {
-    position:absolute; top:12px; right:12px; z-index:20;
-    background:#fff; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,.18);
-    width:240px; max-width:calc(100vw - 24px); max-height:82vh;
-    display:flex; flex-direction:column; padding:10px 0 6px;
+    position:absolute; top:14px; right:14px; z-index:20;
+    background:#fff; border-radius:16px; box-shadow:0 8px 28px rgba(20,30,50,.14), 0 1px 3px rgba(20,30,50,.08);
+    width:260px; max-width:calc(100vw - 28px); max-height:calc(100vh - 28px);
+    display:flex; flex-direction:column; padding:16px 0 8px; overflow:hidden;
   }
-  #legendPanel h2 { font-size:13px; margin:0; padding:0 14px 8px; color:#222; }
-  #legendTools { padding:0 14px 8px; border-bottom:1px solid #eee; }
-  #legendFilter {
-    width:100%; padding:5px 8px; border:1px solid #ccc; border-radius:6px; font-size:12px;
-  }
+  #legendPanel h2 { font-size:15px; font-weight:700; letter-spacing:-.02em; margin:0; padding:0 16px 10px; color:#111; }
+  #legendPanel h2 #legendCount { font-size:12px; font-weight:500; color:var(--muted) !important; }
+  #legendTools { padding:0 16px 10px; border-bottom:1px solid var(--line); }
+  #legendFilter { width:100%; height:36px; }
   #legendTools .toggleRow {
-    display:flex; align-items:center; gap:6px; font-size:11px; color:#555; margin-top:6px;
+    display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#5b6470; margin-top:10px; cursor:pointer;
   }
+  #legendTools input[type=checkbox], #legendList input[type=checkbox] { accent-color:var(--accent); width:15px; height:15px; }
   #legendClearFilterBtn {
-    display:none; margin-top:6px; font-size:11px; color:#4b6ebe; background:#eef2fb;
-    border:1px solid #d3ddf3; border-radius:4px; padding:3px 8px; cursor:pointer;
+    display:none; margin-top:8px; font:inherit; font-size:11.5px; font-weight:600; color:var(--accent); background:#eaf2fc;
+    border:none; border-radius:8px; padding:5px 10px; cursor:pointer;
   }
-  #legendClearFilterBtn:hover { background:#e0e8fa; }
-  #legendList { list-style:none; margin:0; padding:0; overflow-y:auto; flex:1 1 auto; }
+  #legendClearFilterBtn:hover { background:#dce9f9; }
+  #legendList { list-style:none; margin:0; padding:6px 8px; overflow-y:auto; flex:1 1 auto; }
+  #legendList::-webkit-scrollbar { width:8px; }
+  #legendList::-webkit-scrollbar-thumb { background:#d9dee5; border-radius:8px; border:2px solid #fff; }
   #legendList li {
-    display:flex; align-items:center; gap:8px; padding:6px 14px; font-size:12px; color:#333; cursor:pointer;
+    display:flex; align-items:center; gap:8px; padding:7px 8px; font-size:12.5px; color:var(--ink); cursor:pointer; border-radius:8px;
+    transition:background .12s;
   }
-  #legendList li:hover { background:#f3f7fb; }
+  #legendList li:hover { background:#f4f7fb; }
   #legendList li .filterChk { flex:0 0 auto; margin:0; cursor:pointer; }
-  #legendList li .swatch { width:12px; height:12px; border-radius:3px; flex:0 0 auto; }
-  #legendList li .txt { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  #legendList li .cnt { margin-left:auto; color:#888; font-size:11px; flex:0 0 auto; }
-  #legendList li.banItem { padding-left:28px; font-size:11.5px; color:#555; }
-  #legendList li.banItem .swatch {
-    width:9px; height:9px; border:1px dashed #888; background:transparent !important; border-radius:2px;
+  #legendList li .badge {
+    min-width:24px; height:24px; padding:0 6px; border-radius:12px; color:#fff; font-size:11.5px; font-weight:700;
+    display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; font-variant-numeric:tabular-nums;
   }
-  #legendList li.noShape { cursor:default; color:#aaa; }
+  #legendList li .badge.ban { min-width:20px; height:20px; border-radius:10px; font-size:10.5px; background:#fff; border:2px solid; padding:0 4px; }
+  #legendList li .txt { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+  #legendList li .txt .who { font-weight:400; color:#6b7480; }
+  #legendList li .cnt { margin-left:auto; color:var(--muted); font-size:11.5px; flex:0 0 auto; }
+  #legendList li.banItem { padding-left:30px; font-size:12px; }
+  #legendList li.noShape { cursor:default; color:#b4bac3; }
   #legendList li.noShape:hover { background:transparent; }
   body.hideBanList #legendList li.banItem { display:none; }
-  #legendEmpty { padding:10px 14px; font-size:11.5px; color:#999; }
+  #legendEmpty { padding:12px 16px; font-size:12px; color:var(--muted); }
 
   .tong-label {
-    font-family:"NanumGothic","Malgun Gothic",sans-serif;
-    text-align:center; color:#fff; font-size:11px; font-weight:700;
-    background-color:rgba(0,76,128,.92); border-radius:8px; padding:2px 6px;
-    white-space:nowrap; transform:translate(-50%,-50%); box-shadow:0 1px 3px rgba(0,0,0,.3);
+    font-family:Pretendard,-apple-system,"Malgun Gothic",sans-serif;
+    text-align:center; color:#fff; font-size:11.5px; font-weight:700; letter-spacing:-.01em;
+    background:#0b6bcb; border-radius:12px; padding:3px 9px; border:2px solid #fff;
+    white-space:nowrap; transform:translate(-50%,-50%); box-shadow:0 2px 6px rgba(20,30,50,.28);
   }
   .ban-label {
-    font-family:"NanumGothic","Malgun Gothic",sans-serif;
-    text-align:center; color:#333; font-size:10px; font-weight:700;
-    background-color:rgba(255,255,255,.9); border:1px solid #999; border-radius:6px; padding:1px 5px;
-    white-space:nowrap; transform:translate(-50%,-50%); box-shadow:0 1px 2px rgba(0,0,0,.2);
+    font-family:Pretendard,-apple-system,"Malgun Gothic",sans-serif;
+    text-align:center; color:#5b6470; font-size:10.5px; font-weight:700;
+    background:#fff; border:1.5px solid #5b6470; border-radius:10px; padding:1px 7px;
+    white-space:nowrap; transform:translate(-50%,-50%); box-shadow:0 1px 4px rgba(20,30,50,.2);
   }
   .tooltip {
-    background:#fff; border:1px solid #888; border-radius:4px; font-size:12px;
-    padding:5px 8px; box-shadow:0 1px 4px rgba(0,0,0,.25); white-space:nowrap;
+    font-family:Pretendard,-apple-system,"Malgun Gothic",sans-serif;
+    background:#fff; border:none; border-radius:10px; font-size:12px; line-height:1.55; color:#333b45;
+    padding:8px 12px; box-shadow:0 6px 18px rgba(20,30,50,.18); white-space:nowrap;
   }
-  .tooltip .title { font-weight:700; color:#004c80; }
+  .tooltip .title { font-weight:700; color:#111; }
 
   #loading {
-    position:absolute; inset:0; background:rgba(255,255,255,.85); z-index:50;
+    position:absolute; inset:0; background:rgba(246,247,249,.9); z-index:50;
     display:flex; align-items:center; justify-content:center;
-    font-size:14px; color:#004c80; text-align:center; padding:20px;
+    font-size:14px; font-weight:600; color:var(--accent); text-align:center; padding:20px;
   }
   #pwGate {
-    position:fixed; inset:0; z-index:9999; background:#1b2430;
+    position:fixed; inset:0; z-index:9999; background:linear-gradient(160deg,#eef2f7,#dfe6ef);
     display:flex; align-items:center; justify-content:center;
   }
   #pwGate .pwCard {
-    background:#fff; border-radius:12px; padding:32px 28px; width:280px;
-    box-shadow:0 10px 30px rgba(0,0,0,.3); text-align:center;
+    background:#fff; border-radius:20px; padding:36px 30px 30px; width:300px;
+    box-shadow:0 16px 40px rgba(20,30,50,.14), 0 1px 3px rgba(20,30,50,.08); text-align:center;
   }
-  #pwGate h2 { margin:0 0 6px; font-size:17px; }
-  #pwGate p { margin:0 0 16px; color:#777; font-size:13px; }
+  #pwGate h2 { margin:0 0 6px; font-size:18px; font-weight:700; letter-spacing:-.02em; }
+  #pwGate p { margin:0 0 18px; color:var(--muted); font-size:13px; }
   #pwGate input {
-    width:100%; padding:9px 10px; border-radius:6px; border:1px solid #ccc;
-    font-size:14px; margin-bottom:10px;
+    width:100%; height:44px; padding:0 14px; border-radius:12px; border:1px solid transparent; background:var(--soft);
+    font:inherit; font-size:14px; margin-bottom:10px; outline:none;
   }
+  #pwGate input:focus { background:#fff; border-color:var(--accent); box-shadow:0 0 0 3px rgba(11,107,203,.15); }
   #pwGate button {
-    width:100%; padding:9px 10px; border-radius:6px; border:none;
-    background:#4b6ebe; color:#fff; font-size:14px; cursor:pointer;
+    width:100%; height:44px; border-radius:12px; border:none;
+    background:var(--accent); color:#fff; font:inherit; font-size:14px; font-weight:700; cursor:pointer;
   }
-  #pwGate button:hover:enabled { background:#3d5aa0; }
-  #pwGate button:disabled { background:#9aa7c4; cursor:not-allowed; }
-  #pwGate .pwError { color:#d33; font-size:12px; margin-top:8px; min-height:14px; }
+  #pwGate button:hover:enabled { background:var(--accent-hover); }
+  #pwGate button:disabled { background:#9dbfe6; cursor:not-allowed; }
+  #pwGate .pwError { color:#d0383e; font-size:12px; margin-top:8px; min-height:14px; }
 
   @media (max-width: 720px) {
-    #topbar { width:calc(100vw - 24px); }
-    #legendPanel { top:auto; bottom:12px; right:12px; max-height:44vh; }
+    #topbar { width:calc(100vw - 28px); }
+    #legendPanel { top:auto; bottom:14px; right:14px; max-height:44vh; }
   }
 </style>
 </head>
@@ -178,7 +198,7 @@
   </div>
 
   <div id="legendPanel">
-    <h2>통 목록 <span id="legendCount" style="color:#999;font-weight:400;"></span></h2>
+    <h2>통 목록 <span id="legendCount"></span></h2>
     <div id="legendTools">
       <input type="search" id="legendFilter" placeholder="통·반장 검색" aria-label="통·반장 검색">
       <label class="toggleRow"><input type="checkbox" id="banToggle" checked> 반 경계 표시</label>
@@ -75010,8 +75030,14 @@ function tongColor(key) {
     seed = 0;
     String(key).split('').forEach(function (ch) { seed += ch.charCodeAt(0); });
   }
-  var hue = (seed * 47) % 360;
-  colorCache[key] = { stroke: 'hsl(' + hue + ', 62%, 34%)', fill: 'hsl(' + hue + ', 70%, 55%)' };
+var TONG_PALETTE = [
+  { stroke: '#1f5fd6', fill: '#3d7bfd' }, { stroke: '#0e8a4f', fill: '#20b26b' }, { stroke: '#d4630a', fill: '#fd8a2c' },
+  { stroke: '#c2255c', fill: '#e64980' }, { stroke: '#6741d9', fill: '#845ef7' }, { stroke: '#0b8a9a', fill: '#15aabf' },
+  { stroke: '#a8780a', fill: '#f0b429' }, { stroke: '#364fc7', fill: '#5c7cfa' }, { stroke: '#2b8a3e', fill: '#69db7c' },
+  { stroke: '#c92a2a', fill: '#ff6b6b' }, { stroke: '#862e9c', fill: '#cc5de8' }, { stroke: '#5c6b00', fill: '#a9b81c' }
+];
+  var idx = ((Math.round(seed) - 1) % TONG_PALETTE.length + TONG_PALETTE.length) % TONG_PALETTE.length;
+  colorCache[key] = TONG_PALETTE[idx];
   return colorCache[key];
 }
 
@@ -75100,11 +75126,21 @@ function makeListItem(opts) {
     li.setAttribute('role', 'button');
   }
   var swatch = document.createElement('span');
-  swatch.className = 'swatch';
-  if (opts.swatchColor) swatch.style.background = opts.swatchColor;
+  swatch.className = opts.badgeBan ? 'badge ban' : 'badge';
+  if (opts.swatchColor) {
+    if (opts.badgeBan) { swatch.style.borderColor = opts.swatchColor; swatch.style.color = opts.swatchColor; }
+    else swatch.style.background = opts.swatchColor;
+  }
+  swatch.textContent = opts.badgeText || '';
   var label = document.createElement('span');
   label.className = 'txt';
   label.textContent = opts.text;
+  if (opts.who) {
+    var who = document.createElement('span');
+    who.className = 'who';
+    who.textContent = ' · ' + opts.who;
+    label.appendChild(who);
+  }
   li.appendChild(swatch);
   li.appendChild(label);
   if (opts.meta) {
@@ -75152,7 +75188,7 @@ function renderTongFeatures(features) {
     if (tf.center) {
       var labelOverlay = new kakao.maps.CustomOverlay({
         position: new kakao.maps.LatLng(tf.center[1], tf.center[0]),
-        content: '<div class="tong-label">' + esc(tf.label) + '통</div>',
+        content: '<div class="tong-label" style="background:' + colors.stroke + '">' + esc(tf.label) + '통</div>',
         zIndex: 5
       });
       labelOverlay.setMap(oMap);
@@ -75163,9 +75199,11 @@ function renderTongFeatures(features) {
     banTotal += drawnBans;
 
     var li = makeListItem({
-      text: tf.label + '통' + (tf.chief ? ' · 통장 ' + tf.chief : ''),
+      text: tf.label + '통',
+      who: tf.chief ? '통장 ' + tf.chief : '',
+      badgeText: tf.label,
       meta: drawnBans ? drawnBans + '반' : '',
-      swatchColor: colors.fill,
+      swatchColor: colors.stroke,
       search: (tf.label + '통 ' + tf.chief).toLowerCase(),
       interactive: true
     });
@@ -75213,6 +75251,8 @@ function renderTongFeatures(features) {
         // 아래 깔린 통 폴리곤과 섞이지 않고 그 반만 강조할 수 있다.
         var div = document.createElement('div');
         div.className = 'ban-label';
+        div.style.borderColor = colors.stroke;
+        div.style.color = colors.stroke;
         div.textContent = tf.label + '-' + bs.label + '반';
         div.addEventListener('mouseenter', function () { hoverEnter(banPolygon, banTip, banLatLng); });
         div.addEventListener('mouseleave', function () { hoverLeave(banPolygon); });
@@ -75223,7 +75263,11 @@ function renderTongFeatures(features) {
 
       var bli = makeListItem({
         className: 'banItem',
-        text: tf.label + '통 ' + bs.label + '반' + (bs.chief ? ' · 반장 ' + bs.chief : ''),
+        text: bs.label + '반',
+        who: bs.chief ? '반장 ' + bs.chief : '',
+        badgeText: bs.label,
+        badgeBan: true,
+        swatchColor: colors.stroke,
         meta: bs.hasShape ? '' : '좌표 없음',
         search: (tf.label + '통 ' + bs.label + '반 ' + bs.chief).toLowerCase(),
         interactive: bs.hasShape
