@@ -198,8 +198,6 @@
       <div id="addrSearchResult" class="status" role="status" aria-live="polite"></div>
     </div>
     <select id="dongBoundarySelect" hidden aria-hidden="true" tabindex="-1"></select>
-    <button class="fileBtn" id="refreshFromGithubBtn" type="button">최신 데이터 새로고침</button>
-    <div id="fileStatus" role="status" aria-live="polite"></div>
   </div>
 
   <div id="legendPanel">
@@ -75674,7 +75672,8 @@ byId('pwInput').addEventListener('keydown', function (ev) {
 byId('dongBoundarySelect').addEventListener('change', function () {
   if (ALL_DONG_BOUNDARIES[this.value]) applyDong(this.value);
 });
-byId('refreshFromGithubBtn').addEventListener('click', function () {
+var refreshBtn = byId('refreshFromGithubBtn');
+if (refreshBtn) refreshBtn.addEventListener('click', function () {
   refreshFromGithub(state.dong);
 });
 
