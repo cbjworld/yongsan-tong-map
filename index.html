@@ -73,6 +73,12 @@
   }
   #legendPanel h2 { font-size:15px; font-weight:700; letter-spacing:-.02em; margin:0; padding:0 16px 10px; color:#111; }
   #legendPanel h2 #legendCount { font-size:12px; font-weight:500; color:var(--muted) !important; }
+  #legendHead { display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none; }
+  #legendHead .chev { margin-left:auto; width:8px; height:8px; border-right:2px solid #5b6470; border-bottom:2px solid #5b6470; transform:rotate(45deg) translateY(-2px); transition:transform .15s; flex:0 0 auto; }
+  #legendBody { display:flex; flex-direction:column; min-height:0; flex:1 1 auto; }
+  #legendPanel.collapsed #legendBody { display:none; }
+  #legendPanel.collapsed #legendHead { padding-bottom:0; }
+  #legendPanel.collapsed #legendHead .chev { transform:rotate(-135deg) translateY(-2px); }
   #legendTools { padding:0 16px 10px; border-bottom:1px solid var(--line); }
   #legendFilter { width:100%; height:36px; }
   #legendTools .toggleRow {
@@ -191,14 +197,14 @@
       </div>
       <div id="addrSearchResult" class="status" role="status" aria-live="polite"></div>
     </div>
-    <label class="field" for="dongBoundarySelect">동 선택</label>
-    <select id="dongBoundarySelect"></select>
+    <select id="dongBoundarySelect" hidden aria-hidden="true" tabindex="-1"></select>
     <button class="fileBtn" id="refreshFromGithubBtn" type="button">최신 데이터 새로고침</button>
     <div id="fileStatus" role="status" aria-live="polite"></div>
   </div>
 
   <div id="legendPanel">
-    <h2>통 목록 <span id="legendCount"></span></h2>
+    <h2 id="legendHead" role="button" tabindex="0" aria-expanded="true" aria-controls="legendBody">통 목록 <span id="legendCount"></span><span class="chev" aria-hidden="true"></span></h2>
+    <div id="legendBody">
     <div id="legendTools">
       <input type="search" id="legendFilter" placeholder="통·반장 검색" aria-label="통·반장 검색">
       <label class="toggleRow"><input type="checkbox" id="banToggle" checked> 반 경계 표시</label>
@@ -206,6 +212,7 @@
     </div>
     <ul id="legendList"></ul>
     <div id="legendEmpty" hidden>표시할 항목이 없습니다.</div>
+    </div>
   </div>
 </div>
 
@@ -74969,7 +74976,7 @@ function locateTongBanForDong(lng, lat, dongName, addrLabel) {
     reportTongBanAt(lng, lat, dongName, addrLabel, data);
   }).catch(function (err) {
     setAddrSearchStatus(dongName + '의 통/반 데이터를 아직 불러오지 못했습니다 (' +
-      (err && err.message ? err.message : err) + '). 위 "동 선택"에서 ' + dongName + '으로 바꾼 뒤 다시 검색해주세요.', 'warn');
+      (err && err.message ? err.message : err) + '). 잠시 후 다시 검색해주세요.', 'warn');
     clearAddrSearchMarker();
   });
 }
@@ -75670,6 +75677,18 @@ byId('dongBoundarySelect').addEventListener('change', function () {
 byId('refreshFromGithubBtn').addEventListener('click', function () {
   refreshFromGithub(state.dong);
 });
+
+(function () {
+  var panel = byId('legendPanel'), head = byId('legendHead'), KEY = 'tong_legend_collapsed';
+  function stored() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
+  function save(v) { try { localStorage.setItem(KEY, v ? '1' : '0'); } catch (e) {} }
+  function setCollapsed(v) { panel.classList.toggle('collapsed', v); head.setAttribute('aria-expanded', v ? 'false' : 'true'); }
+  var st = stored();
+  setCollapsed(st === null ? window.matchMedia('(max-width: 720px)').matches : st === '1');
+  function toggle() { var v = !panel.classList.contains('collapsed'); setCollapsed(v); save(v); }
+  head.addEventListener('click', toggle);
+  head.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(); } });
+})();
 
 byId('legendFilter').addEventListener('input', function () {
   state.filter = this.value;
